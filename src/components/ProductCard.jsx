@@ -1,7 +1,10 @@
 import React from 'react';
-import { Laptop, DollarSign, Info, MessageCircle } from 'lucide-react';
+import { Laptop, MessageCircle, Eye } from 'lucide-react';
 
 const ProductCard = ({ product, onViewDetails }) => {
+  // ==========================================
+  // BAGIAN A: LOGIC (Format Harga & Link WA)
+  // ==========================================
   const formatPrice = (price) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -11,101 +14,86 @@ const ProductCard = ({ product, onViewDetails }) => {
   };
 
   const handleWhatsAppClick = (e) => {
-    e.stopPropagation();
+    e.stopPropagation(); // Mencegah modal detail terbuka saat klik WA
     if (product.whatsapp) {
       const waNumber = product.whatsapp.replace(/[^0-9]/g, '');
       const message = encodeURIComponent(
-        `Halo, saya tertarik dengan ${product.name} yang harganya ${formatPrice(product.price)}. Apakah stok masih ada?`
+        `Halo, saya tertarik dengan ${product.name}. Apakah stok masih ada?`
       );
       window.open(`https://wa.me/${waNumber}?text=${message}`, '_blank');
     }
   };
 
+  // ==========================================
+  // BAGIAN B: TAMPILAN (Render UI)
+  // ==========================================
   return (
-    <div className="card-hover bg-white rounded-2xl shadow-lg overflow-hidden border border-slate-200">
-      {/* Image */}
-      <div className="relative h-48 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
+    <div 
+      onClick={() => onViewDetails(product)}
+      className="group relative bg-slate-900/40 backdrop-blur-md rounded-3xl overflow-hidden border border-white/10 hover:border-yellow-500/50 transition-all duration-500 cursor-pointer shadow-2xl"
+    >
+      {/* 1. Efek Glow Kunang-kunang (Pojok Kanan Atas) */}
+      <div className="absolute -top-6 -right-6 w-20 h-20 bg-yellow-500/20 blur-2xl group-hover:bg-yellow-500/40 transition-all duration-700"></div>
+
+      {/* 2. Bagian Gambar Produk */}
+      <div className="relative h-56 bg-slate-800/50 overflow-hidden">
         {product.images && product.images[0] ? (
           <img
             src={product.images[0]}
             alt={product.name}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              e.target.style.display = 'none';
-            }}
+            className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
+            onError={(e) => { e.target.style.display = 'none'; }}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Laptop className="w-16 h-16 text-slate-400" />
+            <Laptop className="w-16 h-16 text-slate-600" />
           </div>
         )}
-        {product.condition && (
-          <div className="absolute top-3 right-3 px-3 py-1 bg-white/90 backdrop-blur rounded-lg text-xs font-medium text-slate-700">
-            {product.condition}
+        
+        {/* Overlay Hover Ikon Mata */}
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <div className="p-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20">
+            <Eye className="w-6 h-6 text-white" />
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Content */}
+      {/* 3. Konten Teks & Informasi */}
       <div className="p-6">
-        <div className="mb-3">
-          <h3 className="font-display text-xl font-bold text-slate-800 mb-1 line-clamp-1">
-            {product.name}
-          </h3>
-          <p className="text-sm text-slate-500">{product.brand}</p>
-        </div>
-
-        {/* Price */}
         <div className="mb-4">
-          <div className="price-badge inline-block px-4 py-2 rounded-lg text-white font-bold text-lg">
-            {formatPrice(product.price)}
-          </div>
-        </div>
-
-        {/* Key Specs */}
-        <div className="space-y-2 mb-4">
-          <div className="spec-item flex items-center gap-2 text-sm text-slate-600 p-2 rounded-lg">
-            <Info className="w-4 h-4 text-indigo-500" />
-            <span className="font-medium">{product.processor}</span>
-          </div>
-          <div className="spec-item flex items-center gap-2 text-sm text-slate-600 p-2 rounded-lg">
-            <Info className="w-4 h-4 text-indigo-500" />
-            <span>{product.ram} • {product.storage}</span>
-          </div>
-          {product.display && (
-            <div className="spec-item flex items-center gap-2 text-sm text-slate-600 p-2 rounded-lg">
-              <Info className="w-4 h-4 text-indigo-500" />
-              <span className="line-clamp-1">{product.display}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Category Badge */}
-        <div className="mb-4">
-          <span className="inline-block px-3 py-1 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-medium">
+          <span className="text-[10px] uppercase tracking-[0.2em] text-yellow-500 font-bold">
             {product.category}
           </span>
+          <h3 className="text-xl font-bold text-white mt-1 group-hover:text-yellow-400 transition-colors line-clamp-1">
+            {product.name}
+          </h3>
+          <p className="text-sm text-slate-400">{product.brand}</p>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-2">
+        {/* Harga & Tombol WA */}
+        <div className="flex items-center justify-between mt-auto">
+          <div>
+            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Harga Terbaik</p>
+            <p className="text-xl font-black text-white">
+              {formatPrice(product.price)}
+            </p>
+          </div>
+
+          {/* Tombol WA (Hanya Ikon Sesuai Request) */}
           {product.whatsapp && (
             <button
               onClick={handleWhatsAppClick}
-              className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium hover:shadow-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+              className="p-3 bg-green-500/10 hover:bg-green-500 text-green-500 hover:text-white rounded-2xl border border-green-500/20 hover:border-green-400 transition-all duration-300 shadow-lg shadow-green-500/10"
+              title="Hubungi Penjual"
             >
-              <MessageCircle className="w-4 h-4" />
-              Pesan via WA
+              <MessageCircle className="w-6 h-6" />
             </button>
           )}
-          <button
-            onClick={() => onViewDetails(product)}
-            className={`px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg transition-all transform hover:scale-105 ${product.whatsapp ? 'flex-1' : 'w-full'}`}
-          >
-            Lihat Detail
-          </button>
         </div>
       </div>
+
+      {/* 4. Highlight Tipis Kuning Kunang-kunang di Bawah */}
+      <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-yellow-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
     </div>
   );
 };

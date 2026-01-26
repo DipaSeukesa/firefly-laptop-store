@@ -9,6 +9,9 @@ import { Laptop } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 const Home = () => {
+  // ==========================================
+  // BAGIAN A: STATE MANAGEMENT (Penyimpanan Data)
+  // ==========================================
   const [products, setProducts] = useState([]);
   const [settings, setSettings] = useState({ whatsapp: '', logo: '' });
   const [searchQuery, setSearchQuery] = useState('');
@@ -17,11 +20,13 @@ const Home = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // ==========================================
+  // BAGIAN B: REALTIME SUBSCRIPTION (Sinkronisasi Otomatis)
+  // ==========================================
   useEffect(() => {
     fetchLaptops();
     fetchSettings();
 
-    // Subscribe to real-time changes
     const laptopsSubscription = supabase
       .channel('laptops-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'laptops' }, () => {
@@ -42,6 +47,9 @@ const Home = () => {
     };
   }, []);
 
+  // ==========================================
+  // BAGIAN C: DATA FETCHING (DIPERBARUI) 26 januari 2026
+  // ==========================================
   const fetchLaptops = async () => {
     try {
       const { data, error } = await supabase
@@ -49,25 +57,29 @@ const Home = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching laptops:', error);
-        setProducts([]);
-        return;
-      }
+      if (error) throw error;
 
-      // Transform data to match existing product structure
       const transformedData = (data || []).map(laptop => ({
         id: laptop.id,
         name: laptop.nama || '',
         brand: laptop.kategori || 'Laptop',
         category: laptop.kategori || 'Lainnya',
         price: laptop.harga || 0,
-        processor: 'Lihat detail',
-        ram: 'Lihat detail',
-        storage: 'Lihat detail',
-        display: 'Lihat detail',
-        images: laptop.link_gambar ? [laptop.link_gambar] : [],
-        condition: 'Baru',
+        // Ambil data spesifikasi asli dari database
+        processor: laptop.processor || 'Internal',
+        ram: laptop.ram || '-',
+        storage: laptop.storage || '-',
+        display: laptop.display || '-',
+        battery: laptop.battery_health || '-',
+        condition_text: laptop.condition_physical || '-',
+        features: laptop.features || '-',
+        // Ambil Deskripsi Rekomendasi (Hook)
+        hook: laptop.hook_description || '', 
+        // Gabungkan Thumbnail + Gallery Images
+        images: [
+          laptop.link_gambar, 
+          ...(laptop.images ? laptop.images.split(',') : [])
+        ].filter(url => url && url.trim() !== ''),
         summary: laptop.deskripsi || '',
         description: laptop.deskripsi || '',
         link_gambar: laptop.link_gambar || ''
@@ -89,31 +101,31 @@ const Home = () => {
         .select('*')
         .single();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching settings:', error);
-        return;
-      }
+      if (error && error.code !== 'PGRST116') throw error;
       
       if (data) {
         setSettings({
           whatsapp: data.whatsapp || '',
-          logo: data.logo || ''
+          logo: data.logo || '',
+          // TAMBAHKAN INI AGAR HERO BISA DINAMIS
+          shop_name: data.shop_name || '',
+          shop_tagline: data.shop_tagline || ''
         });
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
-      // Set default settings if error
-      setSettings({ whatsapp: '', logo: '' });
+      setSettings({ whatsapp: '', logo: '', shop_name: '', shop_tagline: '' });
     }
   };
 
-  // Get unique categories
+  // ==========================================
+  // BAGIAN D: FILTER & SEARCH LOGIC (Fungsi Penyaringan)
+  // ==========================================
   const categories = useMemo(() => {
     const cats = [...new Set(products.map(p => p.category))];
     return cats.sort();
   }, [products]);
 
-  // Filter products
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
       const matchesCategory = activeCategory === 'all' || product.category === activeCategory;
@@ -125,6 +137,9 @@ const Home = () => {
     });
   }, [products, activeCategory, searchQuery]);
 
+  // ==========================================
+  // BAGIAN E: EVENT HANDLERS (Aksi Klik User)
+  // ==========================================
   const handleSearch = (query) => {
     setSearchQuery(query);
   };
@@ -143,38 +158,58 @@ const Home = () => {
     setSelectedProduct(null);
   };
 
+  // ==========================================
+  // BAGIAN F: TAMPILAN (Render UI)
+  // ==========================================
   return (
     <div className="min-h-screen bg-slate-900 overflow-auto scroll-smooth">
-      {/* Nature Background */}
-      <div className="fixed inset-0 pointer-events-none z-0" style={{ overflow: 'hidden' }}>
-        <div className="absolute bottom-0 left-0 right-0" style={{ height: '60%' }}>
-          <div className="absolute bottom-24 left-[5%] opacity-30">
-            <svg width="60" height="100" viewBox="0 0 60 100">
-              <polygon points="30,10 10,50 20,50 0,90 20,90 20,100 40,100 40,90 60,90 40,50 50,50" fill="#000000" />
-            </svg>
-          </div>
-          <div className="absolute bottom-24 right-[20%] opacity-30">
-            <svg width="55" height="90" viewBox="0 0 55 90">
-              <polygon points="27,8 9,45 17,45 2,80 17,80 17,90 37,90 37,80 52,80 37,45 45,45" fill="#000000" />
-            </svg>
-          </div>
-          <div className="absolute bottom-8 left-[10%] opacity-70">
-            <svg width="85" height="140" viewBox="0 0 85 140">
-              <rect x="37" y="90" width="11" height="50" fill="#000000" />
-              <polygon points="42,10 15,60 28,60 8,105 28,105 28,95 57,95 57,105 77,105 57,60 70,60" fill="#000000" />
-            </svg>
-          </div>
-          <div className="absolute bottom-4 left-[3%] opacity-80">
-            <svg width="95" height="180" viewBox="0 0 95 180">
-              <rect x="42" y="120" width="12" height="60" fill="#000000" />
-              <polygon points="48,5 18,70 32,70 10,130 32,130 32,125 64,125 64,130 85,130 63,70 77,70" fill="#000000" />
-            </svg>
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 h-12" style={{ background: 'linear-gradient(to top, #000000 0%, transparent 100%)' }}></div>
+      {/* 1. Latar Belakang Alam (Siluet Kebun & Hutan Luas) */}
+{/* 1. Latar Belakang Alam (Siluet Kebun & Hutan Luas - Statis) */}
+<div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+  <div className="absolute bottom-0 left-0 right-0 h-[70%]">
+    
+    {/* LAYER 3: Pohon Belakang (Kecil & Banyak - Kesan Jauh) */}
+    <div className="absolute bottom-32 left-0 right-0 flex justify-around opacity-10">
+      {[0.5, 0.4, 0.6, 0.4, 0.5, 0.7, 0.4, 0.6, 0.5, 0.4, 0.6, 0.5].map((sc, i) => (
+        <div key={`tree-bg-${i}`} style={{ transform: `scale(${sc})` }}>
+          <svg width="60" height="100" viewBox="0 0 60 100">
+            <polygon points="30,5 5,85 55,85" fill="#000000" />
+            <rect x="27" y="85" width="6" height="15" fill="#000000" />
+          </svg>
         </div>
-      </div>
+      ))}
+    </div>
 
-      {/* Firefly Animation Background */}
+    {/* LAYER 2: Pohon Tengah (Sedang) */}
+    <div className="absolute bottom-16 left-0 right-0 flex justify-around opacity-30">
+      {[0.0, 0.9, 1.3, 1.0].map((sc, i) => (
+        <div key={`tree-md-${i}`} style={{ transform: `scale(${sc})` }}>
+          <svg width="80" height="130" viewBox="0 0 85 140">
+            <polygon points="42,5 10,50 25,50 2,100 83,100 60,50 75,50" fill="#000000" />
+            <rect x="38" y="100" width="9" height="40" fill="#000000" />
+          </svg>
+        </div>
+      ))}
+    </div>
+
+    {/* LAYER 1: Pohon Depan (Besar & Dominan) */}
+    <div className="absolute bottom-0 left-0 right-0 flex justify-between px-16 opacity-60">
+      {[1.5].map((sc, i) => (
+        <div key={`tree-fg-${i}`} style={{ transform: `scale(${sc})` }}>
+          <svg width="110" height="300" viewBox="0 0 95 180">
+            <polygon points="48,5 15,60 30,60 5,120 90,120 65,60 80,60" fill="#000000" />
+            <rect x="42" y="120" width="12" height="60" fill="#000000" />
+          </svg>
+        </div>
+      ))}
+    </div>
+
+    {/* Efek Kabut/Tanah Gelap */}
+    <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
+  </div>
+</div>
+
+      {/* 2. Efek Cahaya Kunang-kunang */}
       {[...Array(8)].map((_, i) => (
         <div
           key={i}
@@ -196,11 +231,14 @@ const Home = () => {
         />
       ))}
 
+      {/* 3. Navbar Header */}
       <Navbar logo={settings.logo} />
       
       <div className="relative z-10">
-        <Hero onSearch={handleSearch} />
+        {/* 4. Bagian Hero (Headline & Search) */}
+        <Hero onSearch={handleSearch} logo={settings.logo} settings={settings} />
         
+        {/* 5. Bagian Filter Kategori */}
         <Filter
           categories={categories}
           activeCategory={activeCategory}
@@ -208,15 +246,14 @@ const Home = () => {
           productCount={filteredProducts.length}
         />
 
+        {/* 6. Daftar Produk (Grid) */}
         <main className="max-w-7xl mx-auto px-6 pb-16">
           {loading ? (
             <div className="text-center py-20">
               <div className="text-8xl mb-6 animate-float">
                 <Laptop className="w-20 h-20 mx-auto text-slate-400" />
               </div>
-              <h3 className="text-2xl font-display font-bold text-white mb-3">
-                Memuat...
-              </h3>
+              <h3 className="text-2xl font-display font-bold text-white mb-3">Memuat...</h3>
             </div>
           ) : filteredProducts.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -237,17 +274,17 @@ const Home = () => {
                 {searchQuery ? 'Tidak Ditemukan' : 'Belum Ada Produk'}
               </h3>
               <p className="text-slate-400 mb-8 max-w-md mx-auto">
-                {searchQuery
-                  ? 'Coba kata kunci atau kategori lain'
-                  : 'Produk akan muncul di sini'}
+                {searchQuery ? 'Coba kata kunci lain' : 'Produk akan muncul di sini'}
               </p>
             </div>
           )}
         </main>
 
+        {/* 7. Footer */}
         <Footer whatsapp={settings.whatsapp} />
       </div>
 
+      {/* 8. Modal Pop-up Detail */}
       <ProductDetailModal
         product={selectedProduct}
         isOpen={isModalOpen}
