@@ -24,8 +24,9 @@ const AdminLogin = () => {
       if (authError) {
         setError('Email atau Password Salah');
       } else if (data?.user) {
-        // Login berhasil, redirect ke dashboard
-        navigate('/admin/dashboard');
+        // LOGIN BERHASIL -> LANGSUNG BALIK KE HOME
+        // Di Home nanti, Navbar otomatis berubah jadi "My Workspace"
+        navigate('/');
       }
     } catch (err) {
       setError('Email atau Password Salah');
