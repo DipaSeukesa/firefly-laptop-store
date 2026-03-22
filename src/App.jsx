@@ -5,6 +5,7 @@ import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import Finance from './pages/Finance'; // [!] Sesuaikan nama file & komponennya
 import ProtectedRoute from './components/ProtectedRoute';
+import Todo from './pages/todo';
 
 function App() {
   return (
@@ -33,9 +34,19 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* --- [4] ROUTE TUGAS HARIAN (TODO) --- */}
+        <Route
+          path="/todo"
+          element={
+            <ProtectedRoute>
+              <Todo />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </Router>
   );
 }
 
-export default App;
+export default App; 
