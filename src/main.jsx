@@ -1,3 +1,4 @@
+/* global __BUILD_DATE__ */ // <--- Tambahkan ini di baris pertama
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
