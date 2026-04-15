@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import LogHeader from '../components/logs/LogHeader';
-import TimerSwitches from '../components/logs/TimerSwitches';
-import MonthlyTable from '../components/logs/MonthlyTable';
-import TodayStats from '../components/logs/TodayStats';
+import LogHeader from '../components/DailyLogs/LogHeader';
+import TimerSwitches from '../components/DailyLogs/TimerSwitches';
+import MonthlyTable from '../components/DailyLogs/MonthlyTable';
+import TodayStats from '../components/DailyLogs/TodayStats';
 
 const DailyLogs = () => {
   const todayStr = new Date().toISOString().split('T')[0];
