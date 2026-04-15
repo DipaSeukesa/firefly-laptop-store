@@ -1,3 +1,4 @@
+/* global __APP_VERSION__ */
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Lock,
@@ -24,7 +25,8 @@ const Navbar = ({ logo }) => {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
-  const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '00-00.0000';
+  // Gunakan pengecekan agar jika variabel belum siap, aplikasi tidak crash
+  const version = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'loading...';
 
   // Handle Klik di luar dropdown untuk menutup
   useEffect(() => {

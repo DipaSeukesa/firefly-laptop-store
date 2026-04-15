@@ -1,10 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+// https://vitejs.dev/config/
 export default defineConfig({
-  // Bagian define harus di sini
+  plugins: [react()],
   define: {
-    __APP_VERSION__: JSON.stringify(
+    "__APP_VERSION__": JSON.stringify(
       new Date().toLocaleDateString('id-ID', {
         day: '2-digit',
         month: '2-digit',
@@ -17,6 +18,5 @@ export default defineConfig({
         hour12: false
       }).replace(':', '')
     ),
-  },
-  plugins: [react()],
+  }
 })
