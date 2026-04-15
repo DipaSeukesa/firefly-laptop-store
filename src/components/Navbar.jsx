@@ -1,5 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Lock, LayoutDashboard, ChevronDown, Wallet, CheckSquare, Laptop, LogOut } from 'lucide-react';
+import { 
+  Lock, 
+  LayoutDashboard, 
+  ChevronDown, 
+  Wallet, 
+  CheckSquare, 
+  Laptop,    // <--- PASTIKAN INI ADA
+  Package, 
+  Activity, 
+  Target, 
+  Cpu, 
+  LogOut 
+} from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
@@ -125,17 +137,47 @@ const Navbar = ({ logo }) => {
                       Stok Laptop
                     </Link>
 
-                    <Link to="/finance" onClick={() => setIsOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 text-sm text-slate-200 hover:bg-white/10 transition-colors">
-                      <Wallet size={18} className="text-emerald-400" />
-                      Uang Manager
-                    </Link>
+                    {/* Uang Manager - Existing */}
+<Link to="/finance" onClick={() => setIsOpen(false)}
+  className="flex items-center gap-3 px-4 py-3 text-sm text-slate-200 hover:bg-white/10 transition-colors">
+  <Wallet size={18} className="text-emerald-400" />
+  Uang Manager
+</Link>
 
-                    <Link to="/todo" onClick={() => setIsOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 text-sm text-slate-200 hover:bg-white/10 transition-colors">
-                      <CheckSquare size={18} className="text-amber-400" />
-                      Tugas Harian
-                    </Link>
+{/* Vision Goals - NEW (Pelacakan Target) */}
+<Link to="/goals" onClick={() => setIsOpen(false)}
+  className="flex items-center gap-3 px-4 py-3 text-sm text-slate-200 hover:bg-white/10 transition-colors">
+  <Target size={18} className="text-emerald-400" />
+  Vision Goals
+</Link>
+
+{/* Tugas Harian - Existing */}
+<Link to="/todo" onClick={() => setIsOpen(false)}
+  className="flex items-center gap-3 px-4 py-3 text-sm text-slate-200 hover:bg-white/10 transition-colors">
+  <CheckSquare size={18} className="text-amber-400" />
+  Tugas Harian
+</Link>
+
+{/* Inventaris Aset - NEW (Penting untuk modal 100jt) */}
+<Link to="/assets" onClick={() => setIsOpen(false)}
+  className="flex items-center gap-3 px-4 py-3 text-sm text-slate-200 hover:bg-white/10 transition-colors">
+  <Package size={18} className="text-cyan-400" />
+  Gudang Aset
+</Link>
+
+{/* Log Harian - NEW (Bahan bakar Peta Realitas) */}
+<Link to="/logs" onClick={() => setIsOpen(false)}
+  className="flex items-center gap-3 px-4 py-3 text-sm text-slate-200 hover:bg-white/10 transition-colors">
+  <Activity size={18} className="text-rose-400" />
+  Kondisi Harian
+</Link>
+
+{/* AI Advisor - NEW (Pusat Komando/Tuning Prompt) */}
+<Link to="/ai-advisor" onClick={() => setIsOpen(false)}
+  className="flex items-center gap-3 px-4 py-3 text-sm text-slate-200 hover:bg-white/10 transition-colors">
+  <Cpu size={18} className="text-purple-400" />
+  AI Penasehat
+</Link>
 
                     <button
                       onClick={handleLogout}

@@ -8,6 +8,7 @@ import WalletList from '../components/finance/WalletList';
 import TransactionTable from '../components/finance/TransactionTable';
 import TransactionModal from '../components/finance/TransactionModal';
 import TransactionArchive from '../components/finance/TransactionArchive';
+import RealityFinance from '../components/finance/RealityFinance';
 import { ArrowLeft } from 'lucide-react';
 
 const Finance = () => {
@@ -230,11 +231,11 @@ const Finance = () => {
 
       {/* --- SLIDING NAVIGATION BAR --- */}
       <div className="relative flex p-1 bg-slate-900/50 border border-white/5 rounded-2xl mb-6 overflow-hidden max-w-md mx-auto w-full">
-        <div 
+        <div
           className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-xl transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) shadow-lg"
-          style={{ 
+          style={{
             transform: `translateX(${viewMode === 'table' ? '0%' : '100%'})`,
-            backgroundColor: viewMode === 'table' ? '#4f46e5' : '#d97706' 
+            backgroundColor: viewMode === 'table' ? '#4f46e5' : '#d97706'
           }}
         />
         <button
@@ -252,13 +253,13 @@ const Finance = () => {
       </div>
 
       {/* --- SLIDING CONTENT WINDOW WITH TOUCH HANDLER --- */}
-      <div 
+      <div
         className="relative overflow-hidden w-full touch-pan-y"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
-        <div 
+        <div
           className="flex transition-transform duration-500 ease-in-out"
           style={{ transform: `translateX(${viewMode === 'table' ? '0%' : '-100%'})` }}
         >
@@ -284,6 +285,12 @@ const Finance = () => {
           </div>
         </div>
       </div>
+
+      <RealityFinance
+        stats={stats}
+        transactions={transactions}
+        wallets={wallets}
+      />
 
       <TransactionModal
         showModal={showModal}

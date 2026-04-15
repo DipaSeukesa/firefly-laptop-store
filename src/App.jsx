@@ -3,9 +3,14 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
-import Finance from './pages/Finance'; // [!] Sesuaikan nama file & komponennya
+import Finance from './pages/Finance';
 import ProtectedRoute from './components/ProtectedRoute';
 import Todo from './pages/todo';
+// [!] Import halaman baru
+import Assets from './pages/Assets';
+import DailyLogs from './pages/DailyLogs';
+// import AIAvisor from './pages/AIAvisor';
+import Goals from './pages/Goals';
 
 function App() {
   return (
@@ -25,7 +30,7 @@ function App() {
           }
         />
 
-        {/* --- [3] TAMBAHKAN ROUTE FINANCE DI SINI --- */}
+        {/* --- [3] ROUTE FINANCE --- */}
         <Route
           path="/finance"
           element={
@@ -44,9 +49,40 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* --- [5] ROUTE GUDANG ASET --- */}
+        <Route
+          path="/assets"
+          element={
+            <ProtectedRoute>
+              <Assets />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* --- [6] ROUTE VISION GOALS --- */}
+        <Route
+          path="/goals"
+          element={
+            <ProtectedRoute>
+              <Goals />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* --- [7] ROUTE VISION GOALS --- */}
+        <Route
+          path="/logs"
+          element={
+            <ProtectedRoute>
+              <DailyLogs />
+            </ProtectedRoute>
+          }
+        />
+
       </Routes>
     </Router>
   );
 }
 
-export default App; 
+export default App;
