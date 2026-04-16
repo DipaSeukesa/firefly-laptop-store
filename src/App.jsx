@@ -70,7 +70,7 @@ function App() {
           }
         />
 
-        {/* --- [7] ROUTE VISION GOALS --- */}
+        {/* --- [7] ROUTE kondisi harian --- */}
         <Route
           path="/logs"
           element={

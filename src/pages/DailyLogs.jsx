@@ -57,42 +57,88 @@ const DailyLogs = () => {
     if (activeSession) {
       if (activeSession.mode !== mode) return alert(`Hentikan sesi ${activeSession.mode} dulu!`);
   
-      const duration = Math.max(1, Math.floor((Date.now() - new Date(activeSession.start_time).getTime()) / 60000));
-      const { data: current } = await supabase.from('daily_logs').select('*').eq('tanggal', todayStr).maybeSingle();
-  
-      let fProd = current?.waktu_produktif_menit || 0;
-      let fHP = current?.waktu_hp_menit || 0;
-      mode === 'hp' ? fHP += duration : fProd += duration;
-  
-      // --- LOGIKA SKOR DINAMIS ---
-      // 1. Hitung berapa menit yang sudah terlewati dari jam 00:00 sampai detik ini
-      const now = new Date();
-      const passedMinutesToday = (now.getHours() * 60) + now.getMinutes();
-  
-      // 2. Hitung waktu "Sisa/Void" hanya dari waktu yang sudah berjalan (bukan 1440)
-      const currentVoid = Math.max(0, passedMinutesToday - fProd - fHP);
-  
-      // 3. Kalkulasi Skor: Produktif (+2), HP (-2), Void (+1)
-      const fScore = (fProd * 2) - (fHP * 2) + (currentVoid * 1);
-      
-      // Tentukan status berdasarkan rata-rata skor positif (1.0 adalah netral/void)
-      const payload = { 
-        waktu_hp_menit: fHP, 
-        waktu_produktif_menit: fProd, 
-        produktivitas_score: fScore, 
-        status_hari: fScore >= passedMinutesToday ? 'Optimal' : 'Distracted' 
+      // --- LOGIKA WAKTU GMT+8 (WITA) ---
+      const getWitaDate = (dateObj) => {
+        // Menggeser waktu ke GMT+8 untuk kalkulasi tanggal yang akurat
+        const witaOffset = 8 * 60 * 60 * 1000;
+        return new Date(dateObj.getTime() + witaOffset);
       };
-      // ----------------------------
   
-      if (current) await supabase.from('daily_logs').update(payload).eq('id', current.id);
-      else await supabase.from('daily_logs').insert([{ tanggal: todayStr, ...payload }]);
+      const now = new Date();
+      const startTime = new Date(activeSession.start_time);
+      
+      // String tanggal format YYYY-MM-DD sesuai WITA
+      const startDateStr = startTime.toISOString().split('T')[0];
+      const todayDateStr = now.toISOString().split('T')[0];
   
+      const durationTotal = Math.max(1, Math.floor((now.getTime() - startTime.getTime()) / 60000));
+  
+      // --- LOGIKA CROSS MIDNIGHT (LINTAS HARI) ---
+      // Jika hari ini berbeda dengan hari mulai, kita pecah durasinya
+      const processSession = async (targetDate, addedDuration) => {
+        // Ambil data yang sudah ada di database untuk tanggal tersebut
+        const { data: current } = await supabase
+          .from('daily_logs')
+          .select('*')
+          .eq('tanggal', targetDate)
+          .maybeSingle();
+  
+        let fProd = current?.waktu_produktif_menit || 0;
+        let fHP = current?.waktu_hp_menit || 0;
+        mode === 'hp' ? (fHP += addedDuration) : (fProd += addedDuration);
+  
+        // HitungpassedMinutes: Jika targetDate adalah hari ini, pakai waktu sekarang.
+        // Jika targetDate adalah kemarin, berarti sudah full 1440 menit.
+        const isTargetToday = targetDate === todayDateStr;
+        const passedMinutes = isTargetToday 
+          ? (now.getHours() * 60) + now.getMinutes() 
+          : 1440;
+  
+        const currentVoid = Math.max(0, passedMinutes - fProd - fHP);
+        const fScore = (fProd * 2) - (fHP * 2) + (currentVoid * 1);
+  
+        const payload = {
+          tanggal: targetDate,
+          waktu_hp_menit: fHP,
+          waktu_produktif_menit: fProd,
+          produktivitas_score: fScore,
+          status_hari: fScore >= passedMinutes ? 'Optimal' : 'Distracted'
+        };
+  
+        // Gunakan UPSERT untuk mencegah duplikasi
+        await supabase.from('daily_logs').upsert(payload, { onConflict: 'tanggal' });
+      };
+  
+      if (startDateStr !== todayDateStr) {
+        // Skenario Lintas Hari:
+        // 1. Hitung sisa menit di hari pertama (sampai 23:59)
+        const endOfDay = new Date(startTime);
+        endOfDay.setHours(23, 59, 59, 999);
+        const durationDay1 = Math.floor((endOfDay.getTime() - startTime.getTime()) / 60000);
+        
+        // 2. Sisa menit masuk ke hari kedua
+        const durationDay2 = durationTotal - durationDay1;
+  
+        await processSession(startDateStr, durationDay1);
+        await processSession(todayDateStr, durationDay2);
+      } else {
+        // Skenario Normal (Satu hari yang sama)
+        await processSession(todayDateStr, durationTotal);
+      }
+  
+      // Bersihkan sesi
       await supabase.from('timer_states').delete().eq('id', activeSession.id);
       setActiveSession(null);
       setElapsed(0);
       fetchLogs();
+      
     } else {
-      const { data, error } = await supabase.from('timer_states').insert([{ mode }]).select().single();
+      // START TIMER: Simpan waktu mulai dalam UTC (ISO String)
+      const { data, error } = await supabase
+        .from('timer_states')
+        .insert([{ mode, start_time: new Date().toISOString() }])
+        .select()
+        .single();
       if (!error) setActiveSession(data);
     }
   };
