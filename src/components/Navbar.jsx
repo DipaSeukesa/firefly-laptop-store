@@ -11,7 +11,8 @@ import {
   Activity,
   Target,
   Cpu,
-  LogOut
+  LogOut,
+  Layers
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -182,6 +183,16 @@ const Navbar = ({ logo }) => {
                       className="flex items-center gap-3 px-4 py-3 text-sm text-slate-200 hover:bg-white/10 transition-colors">
                       <Cpu size={18} className="text-purple-400" />
                       AI Penasehat
+                    </Link>
+
+                    {/* PC Builder - NEW (Simulasi Rakitan Komputer) */}
+                    <Link to="/builder" onClick={() => setIsOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 text-sm text-slate-200 hover:bg-white/10 transition-colors">
+                      <Layers size={18} className="text-cyan-400" />
+                      <div className="flex flex-col">
+                        <span>Simulasi Rakitan</span>
+                        <span className="text-[10px] text-slate-500 italic">Peta Realitas Hardware</span>
+                      </div>
                     </Link>
 
                     <button

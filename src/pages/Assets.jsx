@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ChevronLeft, Package, Search } from 'lucide-react';
+import { Plus, ChevronLeft, Package, Search, MapPin } from 'lucide-react';
 
 // Import Komponen Pecahan
 import RealityInsight from '../components/Asset/RealityInsight';
 import AssetCard from '../components/Asset/AssetCard';
 import AssetStats from '../components/Asset/AssetStats';
 import AssetModal from '../components/Asset/AssetModal';
+import RealityMap from '../components/Asset/RealityMap'; // Tambahan komponen peta
+
+// Import Custom Hook
+import { useAssetLocations } from '../hooks/Asset/useAssetLocations';
 
 const Assets = () => {
   const navigate = useNavigate();
@@ -40,6 +44,9 @@ const Assets = () => {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
+  // Gunakan custom hook untuk manajemen lokasi pintar
+  const { parseLocation } = useAssetLocations(assets);
+
   const stats = useMemo(() => {
     const totalModal = assets.reduce((acc, curr) => acc + (Number(curr.harga_modal) || 0), 0);
     const assetsL1 = assets.filter(a => a.kategori_layer === 1);
@@ -60,7 +67,10 @@ const Assets = () => {
     };
 
     const filtered = assets.filter(a => {
-      const matchSearch = a.nama_barang.toLowerCase().includes(searchQuery.toLowerCase()) || (a.kode_unit && a.kode_unit.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchSearch = 
+        a.nama_barang.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (a.kode_unit && a.kode_unit.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (a.lokasi_penyimpanan && a.lokasi_penyimpanan.toLowerCase().includes(searchQuery.toLowerCase())); // Fitur Cari via Kode Lokasi
       const matchLayer = filterLayer === 'all' || a.kategori_layer === parseInt(filterLayer);
       return matchSearch && matchLayer;
     });
@@ -73,7 +83,18 @@ const Assets = () => {
     const { error } = await supabase.from('assets').insert([formData]);
     if (!error) {
       setShowModal(false);
-      setFormData({ nama_barang: '', kategori_layer: 1, kondisi: 'Bagus', harga_modal: 0, harga_jual_target: 0, status_barang: 'Tersedia', lokasi_penyimpanan: '', catatan_teknis: '', kode_unit: '' });
+      // Reset form secara bersih ke kondisi awal peluncuran modal
+      setFormData({ 
+        nama_barang: '', 
+        kategori_layer: 1, 
+        kondisi: 'Bagus', 
+        harga_modal: 0, 
+        harga_jual_target: 0, 
+        status_barang: 'Tersedia', 
+        lokasi_penyimpanan: '', 
+        catatan_teknis: '', 
+        kode_unit: '' 
+      });
       fetchAssets();
     }
   };
@@ -90,6 +111,11 @@ const Assets = () => {
     fetchAssets();
   };
 
+  // Fungsi ketika salah satu kotak di peta di-klik, otomatis memfilter daftar di bawahnya
+  const handleSelectLocationFromMap = (locId) => {
+    setSearchQuery(locId);
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4 pb-32 font-sans">
       {/* HEADER */}
@@ -104,6 +130,14 @@ const Assets = () => {
 
       <AssetStats stats={stats} />
 
+      {/* RENDER PETA REALITAS (Wadah Bersarang) */}
+      {!loading && (
+        <RealityMap 
+          assets={assets} 
+          onSelectLocation={handleSelectLocationFromMap} 
+        />
+      )}
+
       {/* FILTERS */}
       <div className="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar">
         {['all', '1', '2', '3'].map((l) => (
@@ -117,10 +151,18 @@ const Assets = () => {
 
       <div className="relative mb-6">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
-        <input type="text" placeholder="Cari barang atau kode unit..." value={searchQuery}
+        <input type="text" placeholder="Cari sensor, kode unit, atau alamat wadah (misal: TB-DAILY)..." value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full bg-slate-900 border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm outline-none focus:border-cyan-500/50"
         />
+        {searchQuery && (
+          <button 
+            onClick={() => setSearchQuery('')}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase tracking-wider text-cyan-500 hover:text-white"
+          >
+            Reset
+          </button>
+        )}
       </div>
 
       {/* LIST */}
@@ -128,15 +170,28 @@ const Assets = () => {
         {loading ? (
           <p className="text-center text-slate-600 animate-pulse text-xs">Menghubungkan ke database...</p>
         ) : (
-          stats.filtered.map((asset) => (
-            <AssetCard 
-              key={asset.id} 
-              asset={asset} 
-              age={getAssetAge(asset.created_at)} 
-              onDelete={deleteAsset} 
-              onUpdateStatus={updateStatus} 
-            />
-          ))
+          stats.filtered.map((asset) => {
+            // Dekode alamat penyimpanan aset saat ini menggunakan kustom hook
+            const locDetails = parseLocation(asset.lokasi_penyimpanan);
+            
+            return (
+              <div key={asset.id} className="relative group">
+                {/* Badge Alamat Fisik yang Menempel di atas Setiap Kartu Aset */}
+                <div className={`absolute -top-2 left-4 z-10 flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[8px] font-black border tracking-wider uppercase bg-gradient-to-r ${locDetails.color}`}>
+                  <MapPin size={8} />
+                  <span>{locDetails.label}</span>
+                  {locDetails.detail && <span className="opacity-50">| {locDetails.detail}</span>}
+                </div>
+
+                <AssetCard 
+                  asset={asset} 
+                  age={getAssetAge(asset.created_at)} 
+                  onDelete={deleteAsset} 
+                  onUpdateStatus={updateStatus} 
+                />
+              </div>
+            );
+          })
         )}
       </div>
 
@@ -144,13 +199,17 @@ const Assets = () => {
 
       <button onClick={() => setShowModal(true)} className="fixed bottom-6 right-6 w-14 h-14 bg-cyan-600 rounded-full flex items-center justify-center shadow-lg z-40 active:scale-90 transition-transform shadow-cyan-900/40"><Plus size={28} /></button>
 
-      <AssetModal 
-        isOpen={showModal} 
-        onClose={() => setShowModal(false)} 
-        formData={formData} 
-        setFormData={setFormData} 
-        onSave={handleSave} 
-      />
+      {/* Pindahkan kondisi pengecekan ke sini */}
+      {showModal && (
+        <AssetModal 
+          isOpen={showModal} 
+          onClose={() => setShowModal(false)} 
+          formData={formData} 
+          setFormData={setFormData} 
+          onSave={handleSave} 
+          existingAssets={assets} 
+        />
+      )}
     </div>
   );
 };

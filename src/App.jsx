@@ -11,6 +11,10 @@ import Assets from './pages/Assets';
 import DailyLogs from './pages/DailyLogs';
 // import AIAvisor from './pages/AIAvisor';
 import Goals from './pages/Goals';
+// Import halaman baru (nanti kita buat filenya)
+import PCBuilder from './pages/PCBuilder';
+
+
 
 function App() {
   return (
@@ -76,6 +80,15 @@ function App() {
           element={
             <ProtectedRoute>
               <DailyLogs />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/builder"
+          element={
+            <ProtectedRoute>
+              <PCBuilder />
             </ProtectedRoute>
           }
         />

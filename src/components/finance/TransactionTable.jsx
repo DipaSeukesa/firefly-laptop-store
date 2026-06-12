@@ -13,6 +13,8 @@ const TransactionTable = ({
 }) => {
   const [showAll, setShowAll] = useState(false);
   const [collapsedDates, setCollapsedDates] = useState({});
+  // STATE BARU: Untuk menyimpan status buka/tutup per bulan
+  const [collapsedMonths, setCollapsedMonths] = useState({});
 
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -27,7 +29,8 @@ const TransactionTable = ({
   const olderTransactions = sortedData.filter(t => t.tanggal !== todayStr);
   const dataToProcess = showAll ? sortedData : todayTransactions;
 
-  const groupedTransactions = dataToProcess.reduce((groups, t) => {
+  // TAHAP 1: Tetap hitung harian seperti logika asli kamu
+  const dailyGroups = dataToProcess.reduce((groups, t) => {
     const date = t.tanggal;
     if (!groups[date]) {
       groups[date] = { items: [], netDaily: 0 };
@@ -50,6 +53,24 @@ const TransactionTable = ({
     return groups;
   }, {});
 
+  // TAHAP 2: Kelompokkan hasil harian tadi ke dalam Bulan & Tahun
+  const groupedTransactions = Object.entries(dailyGroups).reduce((months, [dateStr, dailyData]) => {
+    const d = new Date(dateStr);
+    const monthYear = d.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
+
+    if (!months[monthYear]) {
+      months[monthYear] = {
+        netMonthly: 0,
+        days: {}
+      };
+    }
+
+    months[monthYear].days[dateStr] = dailyData;
+    months[monthYear].netMonthly += dailyData.netDaily;
+
+    return months;
+  }, {});
+
   const getDayName = (dateStr) => {
     return new Date(dateStr).toLocaleDateString('id-ID', { weekday: 'long' });
   };
@@ -60,10 +81,15 @@ const TransactionTable = ({
     setCollapsedDates(prev => ({ ...prev, [date]: !prev[date] }));
   };
 
+  // FUNGSI BARU: Untuk toggle buka/tutup bulan
+  const toggleMonth = (monthYear) => {
+    setCollapsedMonths(prev => ({ ...prev, [monthYear]: !prev[monthYear] }));
+  };
+
   return (
     <div className="bg-slate-900 rounded-[1.5rem] border border-white/10 shadow-xl overflow-hidden backdrop-blur-sm">
       
-      {/* --- HEADER UTAMA (Lebih Tipis) --- */}
+      {/* --- HEADER UTAMA --- */}
       <div className="px-5 py-4 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
         <div className="flex flex-col">
           <h3 className="font-bold text-xs md:text-sm flex items-center gap-2 text-white">
@@ -81,111 +107,145 @@ const TransactionTable = ({
 
       <div className="flex flex-col bg-slate-900/50">
         {Object.keys(groupedTransactions).length > 0 ? (
-          Object.entries(groupedTransactions).map(([date, data]) => {
-            const isCollapsed = collapsedDates[date] ?? (date !== todayStr);
+          Object.entries(groupedTransactions).map(([monthYear, monthData], index) => {
+            // Bulan pertama (index 0) otomatis terbuka, sisanya otomatis tertutup kecuali dipicu klik
+            const isMonthCollapsed = collapsedMonths[monthYear] ?? (index !== 0);
 
             return (
-              <div key={date} className="flex flex-col">
+              <div key={monthYear} className="border-b border-white/5 last:border-none">
                 
-                {/* STICKY DATE SEPARATOR (Bisa diklik untuk toggle) */}
+                {/* --- SEPARATOR/HEADER BULANAN (Bisa Diklik) --- */}
                 <div 
-                  onClick={() => toggleDate(date)}
-                  className="sticky top-0 z-10 bg-slate-800/90 backdrop-blur-md px-4 md:px-6 py-3 border-y border-white/5 flex justify-between items-center cursor-pointer hover:bg-slate-800 transition-colors group/header"
+                  onClick={() => toggleMonth(monthYear)}
+                  className="bg-slate-950/40 px-4 py-2.5 border-b border-white/5 flex justify-between items-center cursor-pointer hover:bg-slate-950/70 transition-colors group/month"
                 >
-                  <div className="flex items-center gap-3">
-                    <ChevronDown size={16} className={`text-slate-500 transition-transform duration-300 ${isCollapsed ? '-rotate-90' : ''}`} />
-                    <div className="flex flex-col">
-                      <span className="text-[11px] font-black text-white uppercase tracking-wider leading-none">
-                        {date === todayStr ? 'Hari Ini' : getDayName(date)}
-                      </span>
-                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter mt-1">
-                        {new Date(date).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}
-                      </span>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <ChevronDown size={14} className={`text-indigo-400 transition-transform duration-300 ${isMonthCollapsed ? '-rotate-90' : ''}`} />
+                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">
+                      {monthYear}
+                    </span>
                   </div>
-
-                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-black transition-all
-                    ${data.netDaily >= 0 
-                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
-                      : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
-                    {data.netDaily >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                    <span className="opacity-60 text-[8px] uppercase tracking-tighter mr-1 hidden md:inline">Net</span>
-                    {data.netDaily < 0 ? '-' : '+'} {formatIDR(data.netDaily)}
-                  </div>
+                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-md ${
+                    monthData.netMonthly >= 0 ? 'text-emerald-400 bg-emerald-500/5' : 'text-rose-400 bg-rose-500/5'
+                  }`}>
+                    {monthData.netMonthly >= 0 ? '+' : '-'} {formatIDR(monthData.netMonthly)}
+                  </span>
                 </div>
 
-                {/* TRANSACTION ITEMS (Ukuran & Padding Dikurangi) */}
-                {!isCollapsed && (
-                  <div className="divide-y divide-white/5 animate-in fade-in duration-300">
-                    {data.items.map(t => {
-                      const isPemasukan = (t.kategori || "").toLowerCase().includes("pemasukan");
-                      const isTransfer = t.dari_wallet_id && t.ke_wallet_id;
+                {/* --- DAFTAR HARI DI DALAM BULAN (Hanya render jika tidak di-collapse) --- */}
+                {!isMonthCollapsed && (
+                  <div className="divide-y divide-white/[0.02] bg-slate-900/20 animate-in fade-in duration-200">
+                    {Object.entries(monthData.days).map(([date, data]) => {
+                      const isCollapsed = collapsedDates[date] ?? (date !== todayStr);
 
                       return (
-                        <div key={t.id} className="grid grid-cols-1 md:grid-cols-12 px-4 py-3 md:py-2.5 hover:bg-white/[0.01] transition-all group gap-2 md:gap-0 items-center">
+                        <div key={date} className="flex flex-col">
                           
-                          {/* Nama Transaksi & Kategori */}
-                          <div className="md:col-span-5 flex flex-col min-w-0">
-                            <div className="flex justify-between items-center md:block">
-                              <span className="font-semibold text-slate-200 text-xs truncate block pr-2">
-                                {t.keterangan}
-                              </span>
-                              <div className="flex md:hidden gap-3 shrink-0">
-                                <button onClick={() => handleEdit(t)} className="text-amber-500/70 p-1"><Pencil size={14} /></button>
-                                <button onClick={() => handleDelete(t.id)} className="text-rose-500/70 p-1"><Trash2 size={14} /></button>
+                          {/* STICKY DATE SEPARATOR */}
+                          <div 
+                            onClick={() => toggleDate(date)}
+                            className="sticky top-0 z-10 bg-slate-800/90 backdrop-blur-md px-4 md:px-6 py-3 border-b border-white/5 flex justify-between items-center cursor-pointer hover:bg-slate-800 transition-colors group/header"
+                          >
+                            <div className="flex items-center gap-3">
+                              <ChevronDown size={16} className={`text-slate-500 transition-transform duration-300 ${isCollapsed ? '-rotate-90' : ''}`} />
+                              <div className="flex flex-col">
+                                <span className="text-[11px] font-black text-white uppercase tracking-wider leading-none">
+                                  {date === todayStr ? 'Hari Ini' : getDayName(date)}
+                                </span>
+                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter mt-1">
+                                  {new Date(date).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                </span>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-[8px] text-indigo-400/80 font-bold uppercase tracking-widest bg-indigo-500/5 px-1.5 py-[1px] rounded border border-indigo-500/10">
-                                {t.kategori}
-                              </span>
-                              {t.sub_kategori && (
-                                <span className="text-[8px] text-slate-500 font-medium italic truncate">
-                                  {t.sub_kategori}
-                                </span>
-                              )}
+
+                            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-black transition-all
+                              ${data.netDaily >= 0 
+                                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                                : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                              {data.netDaily >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                              <span className="opacity-60 text-[8px] uppercase tracking-tighter mr-1 hidden md:inline">Net</span>
+                              {data.netDaily < 0 ? '-' : '+'} {formatIDR(data.netDaily)}
                             </div>
                           </div>
 
-                          {/* Alur Dompet (Visual Lebih Sederhana) */}
-                          <div className="md:col-span-3 flex items-center">
-                            <div className="flex items-center gap-1.5 text-[8px] font-bold text-slate-500">
-                              <span className={`px-1.5 py-0.5 rounded border border-white/5 bg-white/5 truncate max-w-[60px] ${t.dari_wallet_id ? 'text-rose-400/80' : ''}`}>
-                                {wallets.find(w => w.id === t.dari_wallet_id)?.name || 'OUT'}
-                              </span>
-                              <ArrowRight size={10} className="opacity-30" />
-                              <span className={`px-1.5 py-0.5 rounded border border-white/5 bg-white/5 truncate max-w-[60px] ${t.ke_wallet_id ? 'text-emerald-400/80' : ''}`}>
-                                {wallets.find(w => w.id === t.ke_wallet_id)?.name || 'OUT'}
-                              </span>
+                          {/* TRANSACTION ITEMS */}
+                          {!isCollapsed && (
+                            <div className="divide-y divide-white/5 animate-in fade-in duration-300">
+                              {data.items.map(t => {
+                                const isPemasukan = (t.kategori || "").toLowerCase().includes("pemasukan");
+                                const isTransfer = t.dari_wallet_id && t.ke_wallet_id;
+
+                                return (
+                                  <div key={t.id} className="grid grid-cols-1 md:grid-cols-12 px-4 py-3 md:py-2.5 hover:bg-white/[0.01] transition-all group gap-2 md:gap-0 items-center">
+                                    
+                                    {/* Nama Transaksi & Kategori */}
+                                    <div className="md:col-span-5 flex flex-col min-w-0">
+                                      <div className="flex justify-between items-center md:block">
+                                        <span className="font-semibold text-slate-200 text-xs truncate block pr-2">
+                                          {t.keterangan}
+                                        </span>
+                                        <div className="flex md:hidden gap-3 shrink-0">
+                                          <button onClick={() => handleEdit(t)} className="text-amber-500/70 p-1"><Pencil size={14} /></button>
+                                          <button onClick={() => handleDelete(t.id)} className="text-rose-500/70 p-1"><Trash2 size={14} /></button>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-1.5 mt-0.5">
+                                        <span className="text-[8px] text-indigo-400/80 font-bold uppercase tracking-widest bg-indigo-500/5 px-1.5 py-[1px] rounded border border-indigo-500/10">
+                                          {t.kategori}
+                                        </span>
+                                        {t.sub_kategori && (
+                                          <span className="text-[8px] text-slate-500 font-medium italic truncate">
+                                            {t.sub_kategori}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Alur Dompet */}
+                                    <div className="md:col-span-3 flex items-center">
+                                      <div className="flex items-center gap-1.5 text-[8px] font-bold text-slate-500">
+                                        <span className={`px-1.5 py-0.5 rounded border border-white/5 bg-white/5 truncate max-w-[60px] ${t.dari_wallet_id ? 'text-rose-400/80' : ''}`}>
+                                          {wallets.find(w => w.id === t.dari_wallet_id)?.name || 'OUT'}
+                                        </span>
+                                        <ArrowRight size={10} className="opacity-30" />
+                                        <span className={`px-1.5 py-0.5 rounded border border-white/5 bg-white/5 truncate max-w-[60px] ${t.ke_wallet_id ? 'text-emerald-400/80' : ''}`}>
+                                          {wallets.find(w => w.id === t.ke_wallet_id)?.name || 'OUT'}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Nominal */}
+                                    <div className="md:col-span-2 flex flex-col justify-center md:items-end md:text-right">
+                                      <span className={`font-bold text-xs ${isTransfer ? 'text-indigo-300' : isPemasukan ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                        {isTransfer ? '' : isPemasukan ? '+' : '-'} {formatIDR(t.jumlah)}
+                                      </span>
+                                      {t.fee_transfer > 0 && (
+                                        <span className="text-[7px] text-rose-500/60 font-black uppercase tracking-tighter">
+                                          Fee {formatIDR(t.fee_transfer)}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Aksi Desktop */}
+                                    <div className="hidden md:col-span-2 md:flex items-center justify-end gap-1">
+                                      <button onClick={() => handleEdit(t)} className="p-1.5 rounded-lg text-slate-500 hover:text-amber-500 transition-all opacity-0 group-hover:opacity-100">
+                                        <Pencil size={12} />
+                                      </button>
+                                      <button onClick={() => handleDelete(t.id)} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100">
+                                        <Trash2 size={12} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
-                          </div>
-
-                          {/* Nominal (Font Medium, Fokus Utama) */}
-                          <div className="md:col-span-2 flex flex-col justify-center md:items-end md:text-right">
-                            <span className={`font-bold text-xs ${isTransfer ? 'text-indigo-300' : isPemasukan ? 'text-emerald-400' : 'text-rose-400'}`}>
-                              {isTransfer ? '' : isPemasukan ? '+' : '-'} {formatIDR(t.jumlah)}
-                            </span>
-                            {t.fee_transfer > 0 && (
-                              <span className="text-[7px] text-rose-500/60 font-black uppercase tracking-tighter">
-                                Fee {formatIDR(t.fee_transfer)}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Aksi Desktop (Lebih Kecil) */}
-                          <div className="hidden md:col-span-2 md:flex items-center justify-end gap-1">
-                            <button onClick={() => handleEdit(t)} className="p-1.5 rounded-lg text-slate-500 hover:text-amber-500 transition-all opacity-0 group-hover:opacity-100">
-                              <Pencil size={12} />
-                            </button>
-                            <button onClick={() => handleDelete(t.id)} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100">
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
+                          )}
                         </div>
                       );
                     })}
                   </div>
                 )}
+
               </div>
             );
           })
@@ -196,7 +256,7 @@ const TransactionTable = ({
           </div>
         )}
 
-        {/* --- TOMBOL SHOW MORE (Lebih Tipis) --- */}
+        {/* --- TOMBOL SHOW MORE --- */}
         {olderTransactions.length > 0 && (
           <div className="py-4 flex justify-center border-t border-white/5 bg-white/[0.01]">
             <button 
