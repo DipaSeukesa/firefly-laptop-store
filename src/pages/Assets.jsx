@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ChevronLeft, Package, Search, MapPin } from 'lucide-react';
+import { Plus, ChevronLeft, Package } from 'lucide-react';
 
-// Import Komponen Pecahan
 import RealityInsight from '../components/Asset/RealityInsight';
-import AssetCard from '../components/Asset/AssetCard';
 import AssetStats from '../components/Asset/AssetStats';
 import AssetModal from '../components/Asset/AssetModal';
-import RealityMap from '../components/Asset/RealityMap'; // Tambahan komponen peta
+import RealityMap from '../components/Asset/RealityMap'; 
+import AssetFiltersAndList from '../components/Asset/AssetFiltersAndList';
 
-// Import Custom Hook
 import { useAssetLocations } from '../hooks/Asset/useAssetLocations';
 
 const Assets = () => {
@@ -20,12 +18,16 @@ const Assets = () => {
   const [showModal, setShowModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterLayer, setFilterLayer] = useState('all');
+  const [editingId, setEditingId] = useState(null);
 
-  const [formData, setFormData] = useState({
+  const initialFormState = {
     nama_barang: '', kategori_layer: 1, kondisi: 'Bagus',
     harga_modal: 0, harga_jual_target: 0, status_barang: 'Tersedia',
-    lokasi_penyimpanan: '', catatan_teknis: '', kode_unit: ''
-  });
+    lokasi_penyimpanan: '', catatan_teknis: '', kode_unit: '',
+    qty: 1 // Tambahan state Qty bawaan
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
 
   useEffect(() => { fetchAssets(); }, []);
 
@@ -44,33 +46,35 @@ const Assets = () => {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
-  // Gunakan custom hook untuk manajemen lokasi pintar
   const { parseLocation } = useAssetLocations(assets);
 
   const stats = useMemo(() => {
-    const totalModal = assets.reduce((acc, curr) => acc + (Number(curr.harga_modal) || 0), 0);
+    // SINKRONISASI LOGIKA: Harga modal & profit wajib dikali dengan Qty barang!
+    const totalModal = assets.reduce((acc, curr) => acc + ((Number(curr.harga_modal) || 0) * (curr.qty || 1)), 0);
     const assetsL1 = assets.filter(a => a.kategori_layer === 1);
+    
     const potentialProfit = assetsL1.reduce((acc, curr) => {
       const margin = (Number(curr.harga_jual_target) || 0) - (Number(curr.harga_modal) || 0);
-      return acc + (margin > 0 ? margin : 0);
+      return acc + (margin > 0 ? (margin * (curr.qty || 1)) : 0);
     }, 0);
+
     const needsService = assets.filter(a => a.status_barang === 'Servis').length;
     const stokLama = assets.filter(a => getAssetAge(a.created_at) > 30 && a.status_barang === 'Tersedia');
-    const modalMacet = stokLama.reduce((acc, curr) => acc + Number(curr.harga_modal), 0);
+    const modalMacet = stokLama.reduce((acc, curr) => acc + (Number(curr.harga_modal) * (curr.qty || 1)), 0);
     
     const isCritical = stokLama.length > 2 || needsService > 1;
     const aiAnalysis = {
       status: isCritical ? 'KRITIS' : 'OPTIMAL',
       healthScore: Math.max(0, 100 - (stokLama.length * 10) - (needsService * 15)),
       ratio: assets.filter(a => a.kategori_layer === 1).length > assets.filter(a => a.kategori_layer === 2).length ? 'Agresif (Profit-Oriented)' : 'Defensif (Heavy-Asset)',
-      message: needsService > 0 ? `Ada ${needsService} alat (L2) rusak. Operasional terhambat!` : stokLama.length > 0 ? `Rp ${modalMacet.toLocaleString()} modal terhenti di stok lama (>30 hari).` : "Alur aset sangat sehat. Pertahankan!"
+      message: needsService > 0 ? `Ada ${needsService} jenis alat (L2) rusak. Operasional terhambat!` : stokLama.length > 0 ? `Rp ${modalMacet.toLocaleString()} modal terhenti di stok lama (>30 hari).` : "Alur aset sangat sehat. Pertahankan!"
     };
 
     const filtered = assets.filter(a => {
       const matchSearch = 
         a.nama_barang.toLowerCase().includes(searchQuery.toLowerCase()) || 
         (a.kode_unit && a.kode_unit.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (a.lokasi_penyimpanan && a.lokasi_penyimpanan.toLowerCase().includes(searchQuery.toLowerCase())); // Fitur Cari via Kode Lokasi
+        (a.lokasi_penyimpanan && a.lokasi_penyimpanan.toLowerCase().includes(searchQuery.toLowerCase())); 
       const matchLayer = filterLayer === 'all' || a.kategori_layer === parseInt(filterLayer);
       return matchSearch && matchLayer;
     });
@@ -80,23 +84,39 @@ const Assets = () => {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.from('assets').insert([formData]);
-    if (!error) {
-      setShowModal(false);
-      // Reset form secara bersih ke kondisi awal peluncuran modal
-      setFormData({ 
-        nama_barang: '', 
-        kategori_layer: 1, 
-        kondisi: 'Bagus', 
-        harga_modal: 0, 
-        harga_jual_target: 0, 
-        status_barang: 'Tersedia', 
-        lokasi_penyimpanan: '', 
-        catatan_teknis: '', 
-        kode_unit: '' 
-      });
-      fetchAssets();
+    if (editingId) {
+      const { error } = await supabase.from('assets').update(formData).eq('id', editingId);
+      if (!error) {
+        setShowModal(false);
+        setEditingId(null);
+        setFormData(initialFormState);
+        fetchAssets();
+      }
+    } else {
+      const { error } = await supabase.from('assets').insert([formData]);
+      if (!error) {
+        setShowModal(false);
+        setFormData(initialFormState);
+        fetchAssets();
+      }
     }
+  };
+
+  const handleEditTrigger = (asset) => {
+    setEditingId(asset.id);
+    setFormData({
+      nama_barang: asset.nama_barang,
+      kategori_layer: asset.kategori_layer,
+      kondisi: asset.kondisi,
+      harga_modal: asset.harga_modal,
+      harga_jual_target: asset.harga_jual_target,
+      status_barang: asset.status_barang,
+      lokasi_penyimpanan: asset.lokasi_penyimpanan,
+      catatan_teknis: asset.catatan_teknis || '',
+      kode_unit: asset.kode_unit || '',
+      qty: asset.qty || 1 // Load Qty aset saat diedit
+    });
+    setShowModal(true);
   };
 
   const deleteAsset = async (id) => {
@@ -111,14 +131,8 @@ const Assets = () => {
     fetchAssets();
   };
 
-  // Fungsi ketika salah satu kotak di peta di-klik, otomatis memfilter daftar di bawahnya
-  const handleSelectLocationFromMap = (locId) => {
-    setSearchQuery(locId);
-  };
-
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4 pb-32 font-sans">
-      {/* HEADER */}
       <div className="flex items-center justify-between mb-8">
         <button onClick={() => navigate('/')} className="p-2 bg-white/5 rounded-full text-slate-400"><ChevronLeft size={20} /></button>
         <div className="text-center">
@@ -130,84 +144,30 @@ const Assets = () => {
 
       <AssetStats stats={stats} />
 
-      {/* RENDER PETA REALITAS (Wadah Bersarang) */}
-      {!loading && (
-        <RealityMap 
-          assets={assets} 
-          onSelectLocation={handleSelectLocationFromMap} 
-        />
-      )}
+      {!loading && <RealityMap assets={assets} onSelectLocation={(id) => setSearchQuery(id)} />}
 
-      {/* FILTERS */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar">
-        {['all', '1', '2', '3'].map((l) => (
-          <button key={l} onClick={() => setFilterLayer(l)}
-            className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${filterLayer === l ? 'bg-cyan-600 border-cyan-500 text-white' : 'bg-white/5 border-transparent text-slate-500'}`}
-          >
-            {l === 'all' ? 'Semua' : `Layer ${l}`}
-          </button>
-        ))}
-      </div>
-
-      <div className="relative mb-6">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
-        <input type="text" placeholder="Cari sensor, kode unit, atau alamat wadah (misal: TB-DAILY)..." value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-slate-900 border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm outline-none focus:border-cyan-500/50"
-        />
-        {searchQuery && (
-          <button 
-            onClick={() => setSearchQuery('')}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase tracking-wider text-cyan-500 hover:text-white"
-          >
-            Reset
-          </button>
-        )}
-      </div>
-
-      {/* LIST */}
-      <div className="space-y-3">
-        {loading ? (
-          <p className="text-center text-slate-600 animate-pulse text-xs">Menghubungkan ke database...</p>
-        ) : (
-          stats.filtered.map((asset) => {
-            // Dekode alamat penyimpanan aset saat ini menggunakan kustom hook
-            const locDetails = parseLocation(asset.lokasi_penyimpanan);
-            
-            return (
-              <div key={asset.id} className="relative group">
-                {/* Badge Alamat Fisik yang Menempel di atas Setiap Kartu Aset */}
-                <div className={`absolute -top-2 left-4 z-10 flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[8px] font-black border tracking-wider uppercase bg-gradient-to-r ${locDetails.color}`}>
-                  <MapPin size={8} />
-                  <span>{locDetails.label}</span>
-                  {locDetails.detail && <span className="opacity-50">| {locDetails.detail}</span>}
-                </div>
-
-                <AssetCard 
-                  asset={asset} 
-                  age={getAssetAge(asset.created_at)} 
-                  onDelete={deleteAsset} 
-                  onUpdateStatus={updateStatus} 
-                />
-              </div>
-            );
-          })
-        )}
-      </div>
+      <AssetFiltersAndList
+        filterLayer={filterLayer} setFilterLayer={setFilterLayer}
+        searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+        loading={loading} filteredAssets={stats.filtered}
+        parseLocation={parseLocation} getAssetAge={getAssetAge}
+        deleteAsset={deleteAsset} updateStatus={updateStatus}
+        onEditClick={handleEditTrigger}
+      />
 
       {!loading && <RealityInsight stats={stats} assets={assets} getAssetAge={getAssetAge} />}
 
-      <button onClick={() => setShowModal(true)} className="fixed bottom-6 right-6 w-14 h-14 bg-cyan-600 rounded-full flex items-center justify-center shadow-lg z-40 active:scale-90 transition-transform shadow-cyan-900/40"><Plus size={28} /></button>
+      <button 
+        onClick={() => { setEditingId(null); setFormData(initialFormState); setShowModal(true); }} 
+        className="fixed bottom-6 right-6 w-14 h-14 bg-cyan-600 rounded-full flex items-center justify-center shadow-lg z-40 active:scale-90 transition-transform shadow-cyan-900/40"
+      >
+        <Plus size={28} />
+      </button>
 
-      {/* Pindahkan kondisi pengecekan ke sini */}
       {showModal && (
         <AssetModal 
-          isOpen={showModal} 
-          onClose={() => setShowModal(false)} 
-          formData={formData} 
-          setFormData={setFormData} 
-          onSave={handleSave} 
-          existingAssets={assets} 
+          isOpen={showModal} onClose={() => { setShowModal(false); setEditingId(null); }} 
+          formData={formData} setFormData={setFormData} onSave={handleSave} existingAssets={assets} 
         />
       )}
     </div>

@@ -1,7 +1,7 @@
 import React from 'react';
-import { Trash2, MapPin, Calendar, Clock } from 'lucide-react';
+import { Trash2, Edit2, MapPin, Calendar, Clock, Layers } from 'lucide-react';
 
-const AssetCard = ({ asset, age, onDelete, onUpdateStatus }) => {
+const AssetCard = ({ asset, age, onDelete, onUpdateStatus, onEditClick }) => {
   return (
     <div className="bg-slate-900 border border-white/5 p-4 rounded-[2rem] group hover:border-cyan-500/30 transition-all">
       <div className="flex justify-between items-start mb-2">
@@ -11,6 +11,12 @@ const AssetCard = ({ asset, age, onDelete, onUpdateStatus }) => {
               L{asset.kategori_layer}
             </span>
             <h3 className="text-sm font-bold text-slate-200">{asset.nama_barang}</h3>
+            
+            {/* BADGE QUANTITY BARU */}
+            <span className="text-[9px] font-black px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+              {asset.qty || 1} Pcs
+            </span>
+
             {age > 30 && asset.status_barang === 'Tersedia' && (
               <span className="flex items-center gap-1 text-[7px] bg-rose-500/10 text-rose-500 px-2 py-0.5 rounded-full font-bold">
                 <Clock size={8} /> STOK LAMA
@@ -34,12 +40,24 @@ const AssetCard = ({ asset, age, onDelete, onUpdateStatus }) => {
         </div>
 
         <div className="text-right">
-          <p className="text-[10px] font-mono font-bold text-emerald-500">Rp {Number(asset.harga_modal).toLocaleString()}</p>
-          {asset.kategori_layer === 1 && (
-            <p className="text-[8px] text-slate-600 font-mono italic">Target: {Number(asset.harga_jual_target).toLocaleString()}</p>
+          {/* Akumulasi Harga Modal dikali Qty */}
+          <p className="text-[10px] font-mono font-bold text-emerald-500">
+            Rp {(Number(asset.harga_modal) * (asset.qty || 1)).toLocaleString()}
+          </p>
+          {asset.qty > 1 && (
+            <p className="text-[7px] text-slate-500 font-mono">@{Number(asset.harga_modal).toLocaleString()}/pcs</p>
           )}
-          <div className="flex justify-end gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={() => onDelete(asset.id)} className="text-slate-600 hover:text-rose-500"><Trash2 size={14} /></button>
+          {asset.kategori_layer === 1 && (
+            <p className="text-[8px] text-slate-600 font-mono italic">Target: {(Number(asset.harga_jual_target) * (asset.qty || 1)).toLocaleString()}</p>
+          )}
+          
+          <div className="flex justify-end gap-3 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={() => onEditClick(asset)} className="text-slate-600 hover:text-cyan-400 transition-colors" title="Edit Aset">
+              <Edit2 size={14} />
+            </button>
+            <button onClick={() => onDelete(asset.id)} className="text-slate-600 hover:text-rose-500 transition-colors" title="Hapus Aset">
+              <Trash2 size={14} />
+            </button>
           </div>
         </div>
       </div>
@@ -53,6 +71,7 @@ const AssetCard = ({ asset, age, onDelete, onUpdateStatus }) => {
           <option value="Terjual">Terjual</option>
           <option value="Dipakai">Dipakai</option>
           <option value="Servis">Perlu Servis</option>
+          <option value="Habis">Habis</option>
         </select>
         <div className="text-[8px] text-slate-600 uppercase font-bold">
           Update: {new Date(asset.updated_at).toLocaleDateString('id-ID')}

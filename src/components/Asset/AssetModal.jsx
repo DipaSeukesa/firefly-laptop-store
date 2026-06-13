@@ -14,7 +14,7 @@ const AssetModal = ({ isOpen, onClose, formData, setFormData, onSave, existingAs
   // EFFECT 1: Generator Otomatis Alamat Fisik Penyimpanan
   useEffect(() => {
     let generatedAddress = '';
-    
+
     if (selRak) generatedAddress += selRak;
     if (selWadah && selWadahNo) {
       generatedAddress += (generatedAddress ? '-' : '') + `${selWadah}${selWadahNo}`;
@@ -22,7 +22,7 @@ const AssetModal = ({ isOpen, onClose, formData, setFormData, onSave, existingAs
     if (selCupType && selCupNo) {
       generatedAddress += (generatedAddress ? '-' : '') + `${selCupType}${selCupNo}`;
     }
-    
+
     if (generatedAddress) {
       setFormData(prev => ({ ...prev, lokasi_penyimpanan: generatedAddress }));
     }
@@ -32,7 +32,7 @@ const AssetModal = ({ isOpen, onClose, formData, setFormData, onSave, existingAs
   useEffect(() => {
     // JIKA MEMILIH P1 (DAGANGAN / LAPTOP): Auto-Increment L-XXXX berbasis Database
     if (formData.kategori_layer === 1) {
-      const laptopAssets = existingAssets.filter(asset => 
+      const laptopAssets = existingAssets.filter(asset =>
         asset.kode_unit && asset.kode_unit.startsWith('L-')
       );
 
@@ -46,21 +46,21 @@ const AssetModal = ({ isOpen, onClose, formData, setFormData, onSave, existingAs
 
       const nextNumber = maxNumber + 1;
       const nextCode = `L-${String(nextNumber).padStart(3, '0')}`;
-      
+
       setFormData(prev => ({ ...prev, kode_unit: nextCode }));
-    } 
+    }
     // JIKA MEMILIH P2 (STOK / SENSOR): SN- + "POTONGAN ALAMAT PALING UJUNG"
     else if (formData.kategori_layer === 2) {
       if (formData.lokasi_penyimpanan) {
         // Pecah string alamat dengan '-' sebagai pemisah, lalu ambil elemen terakhir (.pop())
         const alamatArray = formData.lokasi_penyimpanan.split('-');
         const alamatUjung = alamatArray[alamatArray.length - 1]; // Mengambil bagian paling akhir (Misal: CB8 atau CA10)
-        
+
         setFormData(prev => ({ ...prev, kode_unit: `SN-${alamatUjung}` }));
       } else {
         setFormData(prev => ({ ...prev, kode_unit: 'SN-BELUM-LENGKAP' }));
       }
-    } 
+    }
     // JIKA MEMILIH P3 (ALAT SOLDER / TOOLS): Kosongkan
     else if (formData.kategori_layer === 3) {
       setFormData(prev => ({ ...prev, kode_unit: '' }));
@@ -120,8 +120,8 @@ const AssetModal = ({ isOpen, onClose, formData, setFormData, onSave, existingAs
                   type="button"
                   onClick={() => setFormData({ ...formData, kategori_layer: level.id })}
                   className={`flex-1 p-2 rounded-xl border flex flex-col items-center justify-center transition-all ${formData.kategori_layer === level.id
-                      ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400 shadow-md shadow-cyan-500/5'
-                      : 'bg-slate-800 border-transparent text-slate-500 hover:text-slate-400'
+                    ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400 shadow-md shadow-cyan-500/5'
+                    : 'bg-slate-800 border-transparent text-slate-500 hover:text-slate-400'
                     }`}
                 >
                   <span className="text-[10px] font-black">{level.title}</span>
@@ -140,11 +140,10 @@ const AssetModal = ({ isOpen, onClose, formData, setFormData, onSave, existingAs
               key={`kode-unit-layer-${formData.kategori_layer || 1}`}
               placeholder={formData.kategori_layer === 3 ? "Tidak membutuhkan kode (TOOLS)" : "Kode Unit Otomatis"}
               readOnly={formData.kategori_layer === 1 || formData.kategori_layer === 2}
-              className={`w-full p-4 rounded-2xl outline-none border border-white/5 text-sm font-mono tracking-wider transition-colors ${
-                formData.kategori_layer === 3 
-                  ? 'bg-slate-800/40 text-slate-600 italic cursor-not-allowed' 
-                  : 'bg-slate-800 text-cyan-400 focus:border-cyan-500/50'
-              }`}
+              className={`w-full p-4 rounded-2xl outline-none border border-white/5 text-sm font-mono tracking-wider transition-colors ${formData.kategori_layer === 3
+                ? 'bg-slate-800/40 text-slate-600 italic cursor-not-allowed'
+                : 'bg-slate-800 text-cyan-400 focus:border-cyan-500/50'
+                }`}
               value={formData.kode_unit || ''}
               onChange={e => setFormData({ ...formData, kode_unit: e.target.value.toUpperCase() })}
             />
@@ -171,6 +170,20 @@ const AssetModal = ({ isOpen, onClose, formData, setFormData, onSave, existingAs
             </div>
           </div>
 
+          {/* SISIPKAN INPUT FIELD QTY BARU INI DI DALAM FILE ASSETMODAL.JSX KAMU */}
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">Kuantitas Barang (Qty)</label>
+            <input
+              type="number"
+              min="1"
+              required
+              value={formData.qty}
+              onChange={(e) => setFormData(prev => ({ ...prev, qty: Math.max(1, parseInt(e.target.value) || 1) }))}
+              className="w-full bg-slate-900 border border-white/10 rounded-2xl p-3 text-sm outline-none text-white focus:border-cyan-500/50 font-mono"
+              placeholder="Contoh: 1 atau 50"
+            />
+          </div>
+
           {/* REALITY MAP ADDRESS (LOKASI) */}
           <div className="flex flex-col gap-2 p-4 rounded-3xl bg-slate-950/40 border border-white/5">
             <div className="flex justify-between items-center pl-1">
@@ -178,8 +191,8 @@ const AssetModal = ({ isOpen, onClose, formData, setFormData, onSave, existingAs
                 <MapPin size={10} className="text-cyan-500" /> Alamat Fisik Penyimpanan
               </span>
               {formData.lokasi_penyimpanan && (
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={resetMatrixLocation}
                   className="text-[8px] font-black text-rose-500 uppercase tracking-tighter hover:underline"
                 >
@@ -194,6 +207,8 @@ const AssetModal = ({ isOpen, onClose, formData, setFormData, onSave, existingAs
               value={formData.lokasi_penyimpanan || ''}
               onChange={e => setFormData({ ...formData, lokasi_penyimpanan: e.target.value.toUpperCase() })}
             />
+
+
 
             {/* BLOCK GENERATOR 1: PILIHAN RAK (1 - 3) */}
             <div className="flex flex-col gap-1 mt-1">
@@ -227,7 +242,7 @@ const AssetModal = ({ isOpen, onClose, formData, setFormData, onSave, existingAs
                   </button>
                 ))}
               </div>
-              
+
               {selWadah && (
                 <select
                   value={selWadahNo}
@@ -284,7 +299,7 @@ const AssetModal = ({ isOpen, onClose, formData, setFormData, onSave, existingAs
                   { id: 'MEJA-TESTING', label: '🔬 Meja Kerja' }
                 ].map(macro => (
                   <button
-                    key={macro.id} type="button" 
+                    key={macro.id} type="button"
                     onClick={() => {
                       resetMatrixLocation();
                       setFormData(prev => ({ ...prev, lokasi_penyimpanan: macro.id }));
