@@ -3,12 +3,14 @@ import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ChevronLeft, Package } from 'lucide-react';
 
+// Import Komponen Pecahan
 import RealityInsight from '../components/Asset/RealityInsight';
 import AssetStats from '../components/Asset/AssetStats';
 import AssetModal from '../components/Asset/AssetModal';
 import RealityMap from '../components/Asset/RealityMap'; 
 import AssetFiltersAndList from '../components/Asset/AssetFiltersAndList';
 
+// Import Custom Hook
 import { useAssetLocations } from '../hooks/Asset/useAssetLocations';
 
 const Assets = () => {
@@ -24,7 +26,7 @@ const Assets = () => {
     nama_barang: '', kategori_layer: 1, kondisi: 'Bagus',
     harga_modal: 0, harga_jual_target: 0, status_barang: 'Tersedia',
     lokasi_penyimpanan: '', catatan_teknis: '', kode_unit: '',
-    qty: 1 // Tambahan state Qty bawaan
+    qty: 1, kategori_barang: '' // Null/Kosong di awal sesuai arsitektur database baru
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -48,8 +50,18 @@ const Assets = () => {
 
   const { parseLocation } = useAssetLocations(assets);
 
+  // MENGUMPULKAN KATEGORI UNIK DARI DATABASE SEBAGAI SUGESTI + KATEGORI DEFAULT
+  const uniqueCategories = useMemo(() => {
+    const defaultCategories = ['Laptop Second', 'SpearPart', 'Sensor', 'Modul', 'Alat Kerja', 'Suku Cadang'];
+    const dbCategories = assets
+      .map(a => a.kategori_barang)
+      .filter(cat => cat && cat.trim() !== ''); // Bersihkan nilai null / string kosong
+    
+    // Gabungkan dan buang duplikasi menggunakan Set
+    return Array.from(new Set([...defaultCategories, ...dbCategories]));
+  }, [assets]);
+
   const stats = useMemo(() => {
-    // SINKRONISASI LOGIKA: Harga modal & profit wajib dikali dengan Qty barang!
     const totalModal = assets.reduce((acc, curr) => acc + ((Number(curr.harga_modal) || 0) * (curr.qty || 1)), 0);
     const assetsL1 = assets.filter(a => a.kategori_layer === 1);
     
@@ -71,10 +83,16 @@ const Assets = () => {
     };
 
     const filtered = assets.filter(a => {
+      const query = searchQuery.toLowerCase();
+      
+      // PENCARIAN CERDAS MULTI-DIMENSI (Nama, Kode, Lokasi, Kategori, & Deskripsi Catatan)
       const matchSearch = 
-        a.nama_barang.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        (a.kode_unit && a.kode_unit.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (a.lokasi_penyimpanan && a.lokasi_penyimpanan.toLowerCase().includes(searchQuery.toLowerCase())); 
+        a.nama_barang.toLowerCase().includes(query) || 
+        (a.kode_unit && a.kode_unit.toLowerCase().includes(query)) ||
+        (a.lokasi_penyimpanan && a.lokasi_penyimpanan.toLowerCase().includes(query)) ||
+        (a.kategori_barang && a.kategori_barang.toLowerCase().includes(query)) || 
+        (a.catatan_teknis && a.catatan_teknis.toLowerCase().includes(query));
+
       const matchLayer = filterLayer === 'all' || a.kategori_layer === parseInt(filterLayer);
       return matchSearch && matchLayer;
     });
@@ -84,21 +102,28 @@ const Assets = () => {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    
+    // Validasi opsional: ubah string kosong menjadi null saat disimpan ke database
+    const finalData = {
+      ...formData,
+      kategori_barang: formData.kategori_barang?.trim() === '' ? null : formData.kategori_barang.trim()
+    };
+
     if (editingId) {
-      const { error } = await supabase.from('assets').update(formData).eq('id', editingId);
+      const { error } = await supabase.from('assets').update(finalData).eq('id', editingId);
       if (!error) {
         setShowModal(false);
         setEditingId(null);
         setFormData(initialFormState);
         fetchAssets();
-      }
+      } else { console.error("Gagal memperbarui:", error.message); }
     } else {
-      const { error } = await supabase.from('assets').insert([formData]);
+      const { error } = await supabase.from('assets').insert([finalData]);
       if (!error) {
         setShowModal(false);
         setFormData(initialFormState);
         fetchAssets();
-      }
+      } else { console.error("Gagal menambahkan:", error.message); }
     }
   };
 
@@ -114,7 +139,8 @@ const Assets = () => {
       lokasi_penyimpanan: asset.lokasi_penyimpanan,
       catatan_teknis: asset.catatan_teknis || '',
       kode_unit: asset.kode_unit || '',
-      qty: asset.qty || 1 // Load Qty aset saat diedit
+      qty: asset.qty || 1,
+      kategori_barang: asset.kategori_barang || ''
     });
     setShowModal(true);
   };
@@ -133,6 +159,7 @@ const Assets = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white p-4 pb-32 font-sans">
+      {/* HEADER */}
       <div className="flex items-center justify-between mb-8">
         <button onClick={() => navigate('/')} className="p-2 bg-white/5 rounded-full text-slate-400"><ChevronLeft size={20} /></button>
         <div className="text-center">
@@ -167,7 +194,8 @@ const Assets = () => {
       {showModal && (
         <AssetModal 
           isOpen={showModal} onClose={() => { setShowModal(false); setEditingId(null); }} 
-          formData={formData} setFormData={setFormData} onSave={handleSave} existingAssets={assets} 
+          formData={formData} setFormData={setFormData} onSave={handleSave} 
+          existingAssets={assets} categoriesSuggest={uniqueCategories} // Oper daftar sugesti unik ke modal
         />
       )}
     </div>

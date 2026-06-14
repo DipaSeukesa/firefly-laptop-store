@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Cpu } from 'lucide-react';
 
-const AssetModal = ({ isOpen, onClose, formData, setFormData, onSave, existingAssets = [] }) => {
+const AssetModal = ({ isOpen, onClose, formData, setFormData, onSave, existingAssets, categoriesSuggest = [] }) => {
   // if (!isOpen) return null;
 
   // --- STATE MANDIRI UNTUK GENERATOR ALAMAT MATRIKS ---
@@ -129,6 +129,28 @@ const AssetModal = ({ isOpen, onClose, formData, setFormData, onSave, existingAs
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* DI DALAM ASSETMODAL.JSX: GANTI BAGIAN INPUT KATEGORI JADI STRUKTUR INI */}
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">
+              Kategori Komponen (Bisa Ketik Custom)
+            </label>
+            <input
+              type="text"
+              list="category-suggestions" // Menghubungkan input ke datalist di bawah
+              value={formData.kategori_barang || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, kategori_barang: e.target.value }))}
+              placeholder="Ketik baru atau pilih sugesti..."
+              className="w-full bg-slate-900 border border-white/10 rounded-2xl p-3 text-sm outline-none text-white focus:border-cyan-500/50"
+            />
+
+            {/* DATALIST UNTUK MENAMPILKAN SUGESTI SECARA OTOMATIS */}
+            <datalist id="category-suggestions">
+              {categoriesSuggest && categoriesSuggest.map((category, index) => (
+                <option key={index} value={category} />
+              ))}
+            </datalist>
           </div>
 
           {/* KODE UNIT (DENGAN RE-RENDER KEY AMAN DARI WARNING COMPILER) */}
