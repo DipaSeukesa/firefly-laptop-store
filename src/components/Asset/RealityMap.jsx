@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Grid, ChevronDown, ChevronUp, Layers, HardDrive } from 'lucide-react';
+import { BarChart3, ChevronDown, ChevronUp, Info } from 'lucide-react';
 
 const RealityMap = ({ assets, onSelectLocation }) => {
-  // FITUR UTAMA: Default ditutup (hide) agar dasbor ringkas
+  // Default ditutup (hide) agar dasbor tetap rapi, mudah dibuka kapan saja
   const [isOpen, setIsOpen] = useState(false);
 
   const getStorageDensity = (locId) => {
@@ -15,159 +15,211 @@ const RealityMap = ({ assets, onSelectLocation }) => {
     }, 0);
   };
 
-  // 6 ZONA MONITORING REALITAS UTAMA
-  const containers = [
+  // 6 ZONA MONITORING REALITAS FISIK
+  const zones = [
     {
       id: 'RK1',
-      name: '📱 Rak Kaca 1',
-      type: 'RAK UTAMA',
-      tools: 'Laptop Dagangan, Smartphone, Sparepart Premium (P1)',
-      bg: 'border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/10 text-cyan-400',
-      barColor: 'bg-cyan-500'
+      name: 'Rak Kaca 1',
+      category: 'Laptop & HP Dagangan (P1)',
+      tools: 'Unit dagangan utama, smartphone, sparepart premium',
+      barColor: 'from-cyan-500 to-cyan-400',
+      badgeColor: 'text-cyan-400 bg-cyan-950/60 border-cyan-800/60',
+      glow: 'shadow-cyan-500/20'
     },
     {
       id: 'RK2',
-      name: '🍩 Rak Kaca 2',
-      type: 'RAK UTAMA',
-      tools: 'Wadah Induk Box Donat, Komponen Mikro & Sensor (P2)',
-      bg: 'border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 text-blue-400',
-      barColor: 'bg-blue-500'
+      name: 'Rak Kaca 2',
+      category: 'Box Donat & Sensor (P2)',
+      tools: 'Wadah induk komponen mikro, IC, sensor lab',
+      barColor: 'from-blue-500 to-blue-400',
+      badgeColor: 'text-blue-400 bg-blue-950/60 border-blue-800/60',
+      glow: 'shadow-blue-500/20'
     },
     {
       id: 'RK3',
-      name: '📦 Rak Terbuka',
-      type: 'GUDANG BEBAS',
-      tools: 'Box Besar, Stok Kabel, Material Mentah & Makro',
-      bg: 'border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 text-purple-400',
-      barColor: 'bg-purple-500'
+      name: 'Rak Terbuka',
+      category: 'Gudang Bebas & Makro',
+      tools: 'Box besar, kabel gulung, material mentah & casing',
+      barColor: 'from-purple-500 to-purple-400',
+      badgeColor: 'text-purple-400 bg-purple-950/60 border-purple-800/60',
+      glow: 'shadow-purple-500/20'
     },
     {
       id: 'MJ1',
-      name: '🔥 Meja 1: Solder & Perakitan',
-      type: 'STASIUN KERJA',
-      tools: 'Stasiun Solder, Timah, Toolbox Alat Kerja Utama (P3)',
-      bg: 'border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 text-orange-400',
-      barColor: 'bg-orange-500'
+      name: 'Meja 1: Solder',
+      category: 'Stasiun Kerja Perakitan',
+      tools: 'Stasiun solder, timah, toolbox alat kerja utama (P3)',
+      barColor: 'from-orange-500 to-orange-400',
+      badgeColor: 'text-orange-400 bg-orange-950/60 border-orange-800/60',
+      glow: 'shadow-orange-500/20'
     },
     {
       id: 'MJ2',
-      name: '🔧 Meja 2: Bongkar & Mekanik',
-      type: 'STASIUN KERJA',
-      tools: 'Area Pembongkaran, Toolset Obeng, Repositori Part Rusak',
-      bg: 'border-yellow-500/20 bg-yellow-500/5 hover:bg-yellow-500/10 text-yellow-400',
-      barColor: 'bg-yellow-500'
+      name: 'Meja 2: Bongkar',
+      category: 'Area Pembongkaran & Servis',
+      tools: 'Toolset obeng, repositori part servis, unit perbaikan',
+      barColor: 'from-amber-500 to-amber-400',
+      badgeColor: 'text-amber-400 bg-amber-950/60 border-amber-800/60',
+      glow: 'shadow-amber-500/20'
     },
     {
       id: 'MJ3',
-      name: '🔬 Meja 3: Program & Cetak 3D',
-      type: 'STASIUN KERJA',
-      tools: 'PC Programming, ST-Link, Printer 3D, Modul IoT Transit',
-      bg: 'border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-400',
-      barColor: 'bg-emerald-500'
+      name: 'Meja 3: Program',
+      category: 'Stasiun IoT & Cetak 3D',
+      tools: 'PC programming, ST-Link, 3D printer, modul IoT transit',
+      barColor: 'from-emerald-500 to-emerald-400',
+      badgeColor: 'text-emerald-400 bg-emerald-950/60 border-emerald-800/60',
+      glow: 'shadow-emerald-500/20'
     },
   ];
 
+  // Hitung total kapasitas lab (Masing-masing batas visual 20 unit)
+  const maxCapacityPerZone = 20;
+  const totalMaxCapacity = zones.length * maxCapacityPerZone; // 120 Unit
+  const totalLabUnits = zones.reduce((acc, z) => acc + getStorageDensity(z.id), 0);
+  const totalLabPercentage = Math.round((totalLabUnits / totalMaxCapacity) * 100);
+
   return (
-    <div className="bg-slate-900/40 rounded-[2rem] border border-white/5 backdrop-blur-md mb-6 p-4 transition-all duration-300">
+    <div className="bg-slate-900/70 rounded-2xl border border-slate-800 backdrop-blur-md mb-6 overflow-hidden transition-all duration-300">
       
-      {/* HEADER TOMBOL: KLIK UNTUK TOGGLE SHOW/HIDE */}
+      {/* HEADER: TOGGLE SHOW/HIDE */}
       <div 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between cursor-pointer select-none px-2 py-1 hover:text-white transition-colors"
+        className="p-4 flex items-center justify-between cursor-pointer select-none hover:bg-slate-800/40 transition-colors"
       >
-        <div className="flex items-center gap-2.5">
-          <div className={`p-1.5 rounded-xl transition-colors ${isOpen ? 'bg-cyan-500/10 text-cyan-400' : 'bg-white/5 text-slate-400'}`}>
-            <Grid size={15} />
+        <div className="flex items-center gap-3">
+          <div className={`p-2.5 rounded-xl transition-colors ${isOpen ? 'bg-cyan-500/20 text-cyan-400' : 'bg-slate-800 text-slate-400'}`}>
+            <BarChart3 size={18} />
           </div>
           <div>
-            <h3 className="text-xs font-black uppercase tracking-widest text-slate-200">Peta Kepadatan Wadah Fisik</h3>
-            <p className="text-[8px] text-slate-500 font-medium uppercase mt-0.5 tracking-wider">
-              {isOpen ? 'Klik untuk menyembunyikan peta lab' : 'Klik untuk memantau kapasitas lokasi'}
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-100">Grafik Kepadatan Wadah Fisik (Storage Density)</h3>
+              <span className="text-xs font-mono font-medium text-cyan-400 bg-cyan-950/50 border border-cyan-800/50 px-2 py-0.5 rounded-full">
+                {totalLabPercentage}% Terisi
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {isOpen ? 'Klik untuk melipat grafik kapasitas' : 'Buka untuk memantau grafik beban per zona rak & meja lab'}
             </p>
           </div>
         </div>
         
-        <div className="text-slate-500 bg-white/5 p-1.5 rounded-full border border-white/5 group-hover:text-slate-300">
-          {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        <div className="text-slate-400 bg-slate-800 p-2 rounded-xl border border-slate-700/60 hover:text-white transition-colors">
+          {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </div>
       </div>
 
-      {/* PANEL PETA: MELUNCUR TERBUKA HANYA JIKA STATE ISOPEN === TRUE */}
-      <div className={`overflow-hidden transition-all duration-500 ease-in-out ${
-        isOpen ? 'max-h-[2000px] opacity-100 mt-5 pt-4 border-t border-white/5' : 'max-h-0 opacity-0 pointer-events-none'
-      }`}>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          {containers.map((box) => {
-            const itemCount = getStorageDensity(box.id);
-            
-            // LOGIKA GRAFIK KEPADATAN: Maksimal batas visual ideal adalah 20 pcs per wadah
-            const maxCapacityLimit = 20;
-            const percentage = Math.min(100, (itemCount / maxCapacityLimit) * 100);
-            const isOverloaded = itemCount >= maxCapacityLimit;
+      {/* PANEL GRAFIK BATANG HORIZONTAL */}
+      {isOpen && (
+        <div className="p-4 sm:p-5 pt-2 border-t border-slate-800 animate-in fade-in duration-200">
+          
+          {/* Petunjuk Interaktif */}
+          <div className="flex items-center justify-between text-xs text-slate-400 mb-4 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
+            <div className="flex items-center gap-2">
+              <Info size={14} className="text-cyan-400 shrink-0" />
+              <span>Klik batang zona untuk langsung memfilter daftar barang di lokasi tersebut.</span>
+            </div>
+            <span className="font-mono text-slate-300 font-semibold hidden sm:inline">
+              Beban Total: {totalLabUnits} / {totalMaxCapacity} Unit
+            </span>
+          </div>
 
-            return (
-              <div
-                key={box.id}
-                onClick={() => onSelectLocation(box.id)}
-                className={`p-4 rounded-2xl border transition-all duration-300 cursor-pointer active:scale-95 flex flex-col justify-between min-h-[140px] relative overflow-hidden group ${box.bg}`}
-              >
-                {/* Efek Garis Menyala Halus Pada Sisi Atas Card saat Di-hover */}
-                <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          {/* Sumbu Skala Grafis (Axis Scale Guide) */}
+          <div className="hidden sm:flex items-center justify-between text-[10px] font-mono text-slate-500 pl-48 pr-28 pb-1.5 border-b border-slate-800/40 select-none">
+            <span>0</span>
+            <span>5 Unit (25%)</span>
+            <span>10 Unit (50%)</span>
+            <span>15 Unit (75%)</span>
+            <span className="text-rose-400 font-bold">20 Unit (Max Limit)</span>
+          </div>
 
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-950/40 text-slate-400 border border-white/5">
-                      {box.type}
+          {/* DAFTAR GRAFIK BATANG PER ZONA */}
+          <div className="space-y-2 mt-2">
+            {zones.map((zone) => {
+              const count = getStorageDensity(zone.id);
+              const percentage = Math.min(100, (count / maxCapacityPerZone) * 100);
+              const isOverloaded = count >= maxCapacityPerZone;
+
+              return (
+                <div
+                  key={zone.id}
+                  onClick={() => onSelectLocation(zone.id)}
+                  className="group p-2.5 sm:p-3 rounded-xl hover:bg-slate-800/50 transition-colors cursor-pointer border border-transparent hover:border-slate-800 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4"
+                  title={`Klik untuk filter aset di ${zone.name}`}
+                >
+                  {/* Kolom 1: Label Zona & Deskripsi */}
+                  <div className="w-full sm:w-44 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${zone.badgeColor}`}>
+                        {zone.id}
+                      </span>
+                      <h4 className="text-xs font-bold text-slate-200 group-hover:text-cyan-300 transition-colors truncate">
+                        {zone.name}
+                      </h4>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5 truncate font-sans">
+                      {zone.category}
+                    </p>
+                  </div>
+
+                  {/* Kolom 2: Grafik Batang Horizontal */}
+                  <div className="flex-1 min-w-0">
+                    <div className="w-full h-3.5 bg-slate-950/90 rounded-full overflow-hidden border border-slate-800 p-0.5 relative">
+                      {/* Grid Line Marks di belakang bar */}
+                      <div className="absolute inset-0 flex justify-between px-2 pointer-events-none opacity-20">
+                        <div className="w-[1px] h-full bg-white" />
+                        <div className="w-[1px] h-full bg-white" />
+                        <div className="w-[1px] h-full bg-white" />
+                        <div className="w-[1px] h-full bg-white" />
+                      </div>
+
+                      {/* Batang Terisi (Bar Chart) */}
+                      <div
+                        className={`h-full rounded-full transition-all duration-700 ease-out bg-gradient-to-r ${
+                          isOverloaded 
+                            ? 'from-rose-600 to-rose-400 animate-pulse' 
+                            : zone.barColor
+                        }`}
+                        style={{ width: `${count > 0 ? Math.max(5, percentage) : 0}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Kolom 3: Angka Kepadatan & Status */}
+                  <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 sm:w-28 text-right">
+                    <span className="text-xs font-mono text-slate-300 font-semibold">
+                      {count} <span className="text-slate-500 font-normal">/ {maxCapacityPerZone}</span>
                     </span>
-                    <span className={`text-[9px] font-mono font-black px-2 py-0.5 rounded-md transition-all ${
-                      itemCount > 0 
-                        ? isOverloaded 
-                          ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 animate-pulse' 
-                          : 'bg-white/10 text-white' 
-                        : 'bg-white/5 text-slate-500'
+
+                    <span className={`text-xs font-mono font-bold min-w-[36px] text-right ${
+                      isOverloaded 
+                        ? 'text-rose-400' 
+                        : count > 0 
+                          ? 'text-slate-200' 
+                          : 'text-slate-500'
                     }`}>
-                      {itemCount} Pcs
+                      {Math.round(percentage)}%
                     </span>
-                  </div>
-                  
-                  <h4 className="font-bold text-xs text-slate-100 group-hover:text-white transition-colors">{box.name}</h4>
-                  <p className="text-[9px] text-slate-400/80 mt-1 line-clamp-2 italic leading-relaxed font-sans">{box.tools}</p>
-                </div>
 
-                {/* VISUALISASI UTAMA: GRAFIK PROGRESS KEPADATAN FISIK */}
-                <div className="mt-3.5 mb-2">
-                  <div className="flex justify-between items-center text-[7px] font-mono text-slate-500 uppercase mb-1 tracking-wider">
-                    <span>Density Ratio</span>
-                    <span className={isOverloaded ? 'text-rose-400 font-bold' : ''}>
-                      {isOverloaded ? '⚠️ OVERLOAD' : `${Math.round(percentage)}%`}
-                    </span>
-                  </div>
-                  <div className="w-full h-1 bg-slate-950 rounded-full overflow-hidden border border-white/5">
-                    <div 
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        isOverloaded ? 'bg-gradient-to-r from-rose-600 to-rose-400 animate-pulse' : box.barColor
-                      }`}
-                      style={{ width: `${itemCount > 0 ? Math.max(5, percentage) : 0}%` }}
+                    <span 
+                      className={`w-2 h-2 rounded-full shrink-0 ${
+                        isOverloaded
+                          ? 'bg-rose-500 animate-ping'
+                          : count > 0
+                            ? 'bg-emerald-400'
+                            : 'bg-slate-700'
+                      }`} 
+                      title={isOverloaded ? 'Zona Penuh (Overload)' : count > 0 ? 'Normal' : 'Kosong'}
                     />
                   </div>
-                </div>
 
-                {/* FOOTER METADATA CARD */}
-                <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[8px] font-mono tracking-tight text-slate-500 uppercase">
-                  <span>ZONE ID: {box.id}</span>
-                  <span className={itemCount > 0 ? "text-slate-300 font-bold flex items-center gap-1" : "flex items-center gap-1"}>
-                    <span className={`w-1 h-1 rounded-full ${itemCount > 0 ? isOverloaded ? 'bg-rose-500 animate-ping' : 'bg-emerald-400' : 'bg-slate-700'}`} />
-                    {itemCount > 0 ? isOverloaded ? 'Penuh' : 'Terisi' : 'Kosong'}
-                  </span>
                 </div>
+              );
+            })}
+          </div>
 
-              </div>
-            );
-          })}
         </div>
-        
-      </div>
+      )}
     </div>
   );
 };
