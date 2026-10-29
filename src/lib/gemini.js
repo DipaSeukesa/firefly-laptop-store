@@ -10,6 +10,90 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
  * - Otomatis mengumpulkan kalimat panjang & multi-item
  * - Mendukung Bahasa Indonesia (id-ID)
  */
+/**
+ * Membersihkan frasa berulang bersebelahan yang sering terjadi akibat bug Web Speech API di Android
+ * Contoh: "tambahkan aset tambahkan aset" -> "tambahkan aset"
+ */
+export const cleanDuplicatePhrases = (text) => {
+  if (!text) return '';
+  const words = text.trim().split(/\s+/);
+  if (words.length <= 1) return text.trim();
+
+  // Cek frasa berulang bersebelahan (window 1 hingga words.length / 2)
+  const maxPhraseLen = Math.floor(words.length / 2);
+  let cleanedWords = [...words];
+
+  for (let n = maxPhraseLen; n >= 1; n--) {
+    let i = 0;
+    while (i + 2 * n <= cleanedWords.length) {
+      const phrase1 = cleanedWords.slice(i, i + n).map(w => w.toLowerCase()).join(' ');
+      const phrase2 = cleanedWords.slice(i + n, i + 2 * n).map(w => w.toLowerCase()).join(' ');
+
+      if (phrase1 === phrase2) {
+        cleanedWords.splice(i + n, n);
+      } else {
+        i++;
+      }
+    }
+  }
+
+  return cleanedWords.join(' ');
+};
+
+/**
+ * Menggabungkan transkrip eksisting dengan potongan kata baru secara aman
+ * Mencegah akumulasi ganda atau pengulangan dari event mobile/Android
+ */
+export const mergeTranscript = (existing, newPiece) => {
+  const existingTrim = (existing || '').trim();
+  const pieceTrim = (newPiece || '').trim();
+
+  if (!existingTrim) return cleanDuplicatePhrases(pieceTrim);
+  if (!pieceTrim) return cleanDuplicatePhrases(existingTrim);
+
+  // Jika kata baru identik dengan eksisting (duplikat penuh)
+  if (existingTrim.toLowerCase() === pieceTrim.toLowerCase()) {
+    return existingTrim;
+  }
+
+  // Jika potongan baru adalah versi akumulatif dari kalimat sebelumnya (ciri khas Android Chrome)
+  // Contoh: existing = "tambahkan", piece = "tambahkan aset"
+  if (pieceTrim.toLowerCase().startsWith(existingTrim.toLowerCase())) {
+    return cleanDuplicatePhrases(pieceTrim);
+  }
+
+  // Jika teks eksisting sudah mengandung atau berakhiran dengan potongan baru
+  // Contoh: existing = "tambahkan aset", piece = "aset" atau "tambahkan aset"
+  if (existingTrim.toLowerCase().endsWith(pieceTrim.toLowerCase())) {
+    return existingTrim;
+  }
+
+  // Cek overlap kata di ujung
+  const existingWords = existingTrim.split(/\s+/);
+  const pieceWords = pieceTrim.split(/\s+/);
+  const maxOverlap = Math.min(existingWords.length, pieceWords.length);
+
+  for (let overlap = maxOverlap; overlap > 0; overlap--) {
+    const endSlice = existingWords.slice(-overlap).map(w => w.toLowerCase()).join(' ');
+    const startSlice = pieceWords.slice(0, overlap).map(w => w.toLowerCase()).join(' ');
+    if (endSlice === startSlice) {
+      const merged = existingWords.concat(pieceWords.slice(overlap)).join(' ');
+      return cleanDuplicatePhrases(merged);
+    }
+  }
+
+  const combined = existingTrim + ' ' + pieceTrim;
+  return cleanDuplicatePhrases(combined);
+};
+
+/**
+ * Speech Recognition Wrapper (Web Speech API Native)
+ * Mode Continuous Cerdas (Kompatibel Desktop Windows & Android Mobile):
+ * - Mengatasi Chromium Android Bug (suara berulang ganda "tambahkan aset tambahkan aset")
+ * - Menggunakan single-turn + auto-resume di Android, continuous di Windows/Desktop
+ * - Filter deduplikasi kata & frasa ganda secara otomatis
+ * - Mendukung Bahasa Indonesia (id-ID)
+ */
 export const initSpeechRecognition = ({ onResult, onStatusChange, onError }) => {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -19,30 +103,53 @@ export const initSpeechRecognition = ({ onResult, onStatusChange, onError }) => 
     return null;
   }
 
+  // Deteksi platform Android untuk mitigasi bug Web Speech API Android Chrome
+  const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+
   const recognition = new SpeechRecognition();
   recognition.lang = 'id-ID';
-  recognition.continuous = true; // KUNCI: Terus mendengarkan tanpa putus saat jeda bicara
+  // Pada Android Chrome, continuous=true memicu engine Google mengirimkan hasil berulang ganda.
+  // Gunakan continuous=false di Android (auto-resume di onend tetap menjaga mic aktif tanpa bug).
+  recognition.continuous = !isAndroid;
   recognition.interimResults = true;
 
   let isExplicitlyStopped = true;
   let finalTranscript = '';
+  let lastProcessedFinal = '';
 
   recognition.onstart = () => {
-    console.log('🎙️ [Voice VTT] Mikrofon aktif (Continuous Dictation Mode - Gboard style)...');
+    console.log(`🎙️ [Voice VTT] Mikrofon aktif (${isAndroid ? 'Android Mode + Anti-Duplicate' : 'Desktop Continuous Dictation'})...`);
     if (onStatusChange) onStatusChange('LISTENING');
   };
 
   recognition.onresult = (event) => {
     let interimTranscript = '';
+
     for (let i = event.resultIndex; i < event.results.length; i++) {
-      const piece = event.results[i][0].transcript;
-      if (event.results[i].isFinal) {
-        finalTranscript += (finalTranscript ? ' ' : '') + piece.trim();
+      const result = event.results[i];
+      const piece = result[0]?.transcript?.trim();
+      if (!piece) continue;
+
+      if (result.isFinal) {
+        // Abaikan jika Android memicu event final ganda dengan isi persis sama
+        if (piece.toLowerCase() === lastProcessedFinal.toLowerCase()) {
+          continue;
+        }
+        lastProcessedFinal = piece;
+        finalTranscript = mergeTranscript(finalTranscript, piece);
       } else {
-        interimTranscript += piece;
+        interimTranscript = piece;
       }
     }
-    const currentCombined = (finalTranscript + (interimTranscript ? ' ' + interimTranscript : '')).trim();
+
+    let currentCombined = '';
+    if (interimTranscript) {
+      currentCombined = mergeTranscript(finalTranscript, interimTranscript);
+    } else {
+      currentCombined = finalTranscript;
+    }
+
+    currentCombined = cleanDuplicatePhrases(currentCombined);
     console.log('📝 [Voice VTT] Transkrip aktif:', currentCombined);
     if (onResult) onResult(currentCombined);
   };
@@ -78,9 +185,10 @@ export const initSpeechRecognition = ({ onResult, onStatusChange, onError }) => 
   };
 
   return {
-    start: () => {
+    start: (initialText = '') => {
       isExplicitlyStopped = false;
-      finalTranscript = '';
+      finalTranscript = (initialText || '').trim();
+      lastProcessedFinal = '';
       try {
         recognition.start();
       } catch (err) {
@@ -95,6 +203,7 @@ export const initSpeechRecognition = ({ onResult, onStatusChange, onError }) => 
     },
     reset: () => {
       finalTranscript = '';
+      lastProcessedFinal = '';
     }
   };
 };

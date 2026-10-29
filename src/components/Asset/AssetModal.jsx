@@ -86,7 +86,7 @@ const AssetModal = ({
     } else {
       setAiMessage(null);
       try {
-        speechRecognizer.start();
+        speechRecognizer.start(voiceInput);
       } catch (err) {
         console.error('Failed to start speech:', err);
       }
