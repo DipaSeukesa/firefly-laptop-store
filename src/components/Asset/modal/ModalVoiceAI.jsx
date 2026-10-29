@@ -20,6 +20,9 @@ const ModalVoiceAI = ({
 }) => {
   const textareaRef = useRef(null);
 
+  // Deteksi perangkat mobile/Android: di HP pengguna sudah memiliki mic bawaan keyboard (Gboard / Samsung Keyboard)
+  const isMobileDevice = typeof navigator !== 'undefined' && (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+
   // Auto-resize textarea mengikuti panjang teks dan baris baru (Enter)
   useEffect(() => {
     if (textareaRef.current) {
@@ -49,40 +52,46 @@ const ModalVoiceAI = ({
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-bold text-cyan-400 flex items-center gap-1.5 uppercase tracking-wider">
             <Sparkles size={14} className="text-cyan-400" />
-            Asisten Suara & Auto-Fill Gemini AI
+            {isMobileDevice ? 'Auto-Fill Gemini AI' : 'Asisten Suara & Auto-Fill Gemini AI'}
           </span>
           <span className="text-[10px] font-mono text-cyan-400/90 font-bold bg-cyan-950/60 px-2 py-0.5 rounded-md border border-cyan-500/30">
-            Continuous Mic + Multi-Item
+            {isMobileDevice ? 'Multi-Item Batch' : 'Continuous Mic + Multi-Item'}
           </span>
         </div>
 
         <p className="text-xs text-slate-400 mb-2 leading-relaxed">
-          Bicara atau ketik satu / beberapa item sekaligus (tekan <em>Enter</em> untuk baris baru, <em>Ctrl+Enter</em> untuk proses).
+          {isMobileDevice
+            ? 'Ketik nama barang atau gunakan ikon mikrofon pada keyboard HP (Gboard) untuk bicara.'
+            : 'Bicara atau ketik satu / beberapa item sekaligus (tekan Enter untuk baris baru, Ctrl+Enter untuk proses).'}
         </p>
 
         <div className="flex items-start gap-2">
-          {/* Tombol Mikrofon VTT */}
-          <button
-            type="button"
-            onClick={toggleListening}
-            className={`p-3 rounded-xl border flex items-center justify-center transition-all shrink-0 mt-0.5 ${
-              isListening
-                ? 'bg-rose-500 text-white border-rose-400 animate-pulse ring-2 ring-rose-500/40'
-                : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-cyan-400'
-            }`}
-            title={isListening ? "Klik untuk menghentikan mikrofon" : "Klik & bicara nama barang"}
-          >
-            {isListening ? <MicOff size={18} /> : <Mic size={18} />}
-          </button>
+          {/* Tombol Mikrofon VTT (Hanya tampil di Laptop / Desktop Windows / Mac, disembunyikan di HP) */}
+          {!isMobileDevice && (
+            <button
+              type="button"
+              onClick={toggleListening}
+              className={`p-3 rounded-xl border flex items-center justify-center transition-all shrink-0 mt-0.5 ${
+                isListening
+                  ? 'bg-rose-500 text-white border-rose-400 animate-pulse ring-2 ring-rose-500/40'
+                  : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-cyan-400'
+              }`}
+              title={isListening ? "Klik untuk menghentikan mikrofon" : "Klik & bicara nama barang"}
+            >
+              {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+            </button>
+          )}
 
           {/* Textarea Auto-Height Dinamis */}
           <textarea
             ref={textareaRef}
             rows={2}
             placeholder={
-              isListening
-                ? "Mendengarkan ucapan... (Jeda bicara tidak memutus mic. Tekan stop jika selesai)"
-                : "Contoh:\ntambahkan adaptor acer adp-65 jhbb dan toshiba sadp-75PBB pada rak 2"
+              isMobileDevice
+                ? "Contoh:\ntambahkan adaptor acer adp-65 jhbb dan toshiba sadp-75PBB pada rak 2"
+                : (isListening
+                    ? "Mendengarkan ucapan... (Jeda bicara tidak memutus mic. Tekan stop jika selesai)"
+                    : "Contoh:\ntambahkan adaptor acer adp-65 jhbb dan toshiba sadp-75PBB pada rak 2")
             }
             value={voiceInput}
             onChange={handleInputChange}
