@@ -1,8 +1,10 @@
-import React, { useRef, useEffect } from 'react';
-import { Sparkles, Mic, MicOff, Loader2, Zap, AlertCircle, Layers, Check } from 'lucide-react';
+import React, { useRef, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Sparkles, Mic, MicOff, Loader2, Zap, AlertCircle, Layers, Check, Maximize2, Minimize2 } from 'lucide-react';
 
 /**
  * Komponen Voice to Text & Auto-Fill AI dengan Textarea Auto-Resize
+ * Desain ChatGPT-Style: Toolbar tombol di dalam bagian bawah textbox & Fullscreen Mode
  */
 const ModalVoiceAI = ({
   voiceInput,
@@ -19,6 +21,7 @@ const ModalVoiceAI = ({
   handleSaveAllBatch
 }) => {
   const textareaRef = useRef(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Deteksi perangkat mobile/Android: di HP pengguna sudah memiliki mic bawaan keyboard (Gboard / Samsung Keyboard)
   const isMobileDevice = typeof navigator !== 'undefined' && (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
@@ -33,6 +36,16 @@ const ModalVoiceAI = ({
     }
   }, [voiceInput]);
 
+  // Listener tombol Escape untuk keluar dari mode Fullscreen
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const handleKeyDownEsc = (e) => {
+      if (e.key === 'Escape') setIsFullscreen(false);
+    };
+    window.addEventListener('keydown', handleKeyDownEsc);
+    return () => window.removeEventListener('keydown', handleKeyDownEsc);
+  }, [isFullscreen]);
+
   const handleInputChange = (e) => {
     setVoiceInput(e.target.value);
   };
@@ -44,6 +57,8 @@ const ModalVoiceAI = ({
       handleProcessAI();
     }
   };
+
+  const lineCount = (voiceInput.match(/\n/g) || []).length + 1;
 
   return (
     <div className="space-y-3">
@@ -65,23 +80,8 @@ const ModalVoiceAI = ({
             : 'Bicara atau ketik satu / beberapa item sekaligus (tekan Enter untuk baris baru, Ctrl+Enter untuk proses).'}
         </p>
 
-        <div className="flex items-start gap-2">
-          {/* Tombol Mikrofon VTT (Hanya tampil di Laptop / Desktop Windows / Mac, disembunyikan di HP) */}
-          {!isMobileDevice && (
-            <button
-              type="button"
-              onClick={toggleListening}
-              className={`p-3 rounded-xl border flex items-center justify-center transition-all shrink-0 mt-0.5 ${
-                isListening
-                  ? 'bg-rose-500 text-white border-rose-400 animate-pulse ring-2 ring-rose-500/40'
-                  : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-cyan-400'
-              }`}
-              title={isListening ? "Klik untuk menghentikan mikrofon" : "Klik & bicara nama barang"}
-            >
-              {isListening ? <MicOff size={18} /> : <Mic size={18} />}
-            </button>
-          )}
-
+        {/* CONTAINER TEXTBOX CHATGPT-STYLE (Tombol Mic, Fullscreen, & Zap di bagian dalam bawah) */}
+        <div className="relative bg-slate-900/90 border border-slate-700/80 focus-within:border-cyan-500 focus-within:ring-1 focus-within:ring-cyan-500/30 rounded-2xl transition-all shadow-inner overflow-hidden flex flex-col">
           {/* Textarea Auto-Height Dinamis */}
           <textarea
             ref={textareaRef}
@@ -96,21 +96,59 @@ const ModalVoiceAI = ({
             value={voiceInput}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            className="flex-1 bg-slate-900 border border-slate-800 focus:border-cyan-500 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 outline-none resize-none leading-relaxed transition-all"
+            className="w-full bg-transparent px-3.5 pt-3 pb-1 text-xs text-white placeholder-slate-500 outline-none resize-none leading-relaxed transition-all"
             style={{ minHeight: '52px' }}
           />
 
-          {/* Tombol Eksekusi Gemini AI */}
-          <button
-            type="button"
-            onClick={handleProcessAI}
-            disabled={aiLoading}
-            className="px-3.5 py-3 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 shadow-md shadow-cyan-950/40 mt-0.5"
-            title="Proses AI (atau tekan Ctrl+Enter)"
-          >
-            {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-            <span className="hidden sm:inline">Proses AI</span>
-          </button>
+          {/* Bottom Toolbar Didalam Textbox (ChatGPT-Style) */}
+          <div className="flex items-center justify-between px-2.5 pb-2 pt-1 border-t border-slate-800/60 bg-slate-950/30">
+            {/* Sisi Kiri: Tombol Voice Mic & Fullscreen */}
+            <div className="flex items-center gap-1">
+              {/* Tombol Mikrofon VTT (Hanya tampil di Laptop / Desktop Windows / Mac) */}
+              {!isMobileDevice && (
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  className={`p-2 rounded-xl transition-all flex items-center justify-center shrink-0 ${
+                    isListening
+                      ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-500/30'
+                      : 'text-slate-400 hover:text-cyan-400 hover:bg-slate-800/80'
+                  }`}
+                  title={isListening ? "Hentikan mikrofon" : "Klik & bicara nama barang"}
+                >
+                  {isListening ? <MicOff size={15} /> : <Mic size={15} />}
+                </button>
+              )}
+
+              {/* Tombol Fullscreen Textbox */}
+              <button
+                type="button"
+                onClick={() => setIsFullscreen(true)}
+                className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/80 rounded-xl transition-all flex items-center justify-center shrink-0"
+                title="Layar Penuh (Fullscreen Editor)"
+              >
+                <Maximize2 size={15} />
+              </button>
+
+              {/* Indikator Baris jika teks multi-line */}
+              {lineCount > 1 && (
+                <span className="text-[10px] font-mono text-cyan-400/80 bg-cyan-950/60 px-2 py-0.5 rounded-md border border-cyan-500/20 hidden sm:inline">
+                  {lineCount} item
+                </span>
+              )}
+            </div>
+
+            {/* Sisi Kanan: Tombol Eksekusi Gemini AI (Ikon Zap Murni Tanpa Label) */}
+            <button
+              type="button"
+              onClick={handleProcessAI}
+              disabled={aiLoading || !voiceInput.trim()}
+              className="p-2.5 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 disabled:opacity-40 disabled:hover:from-cyan-600 text-white rounded-xl transition-all shadow-md shadow-cyan-950/50 flex items-center justify-center shrink-0 active:scale-95"
+              title="Proses AI (Ctrl+Enter)"
+            >
+              {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+            </button>
+          </div>
         </div>
 
         {/* Notifikasi Status AI */}
@@ -127,6 +165,108 @@ const ModalVoiceAI = ({
           </div>
         )}
       </div>
+
+      {/* === MODAL FULLSCREEN TEXTBOX (CHATGPT EXPANDED PROMPT MODE) === */}
+      {isFullscreen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-cyan-500/40 w-full max-w-3xl h-[88vh] rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col justify-between relative ring-1 ring-cyan-500/20">
+            {/* Header Fullscreen */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                  <Sparkles size={18} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    Editor Teks Gemini AI Fullscreen
+                    <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded-md border border-cyan-500/30">
+                      ChatGPT Style
+                    </span>
+                  </h4>
+                  <p className="text-xs text-slate-400">
+                    Ketik atau tempel banyak barang sekaligus (tekan Enter untuk baris baru, Ctrl+Enter untuk proses).
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsFullscreen(false)}
+                className="p-2 text-slate-400 hover:text-white rounded-xl bg-slate-800 hover:bg-slate-700 transition-colors"
+                title="Tutup Layar Penuh (Esc)"
+              >
+                <Minimize2 size={18} />
+              </button>
+            </div>
+
+            {/* Textarea Fullscreen (Nyaman & Luas) */}
+            <div className="flex-1 my-3 flex flex-col min-h-0">
+              <textarea
+                autoFocus
+                placeholder="Contoh:&#10;tambahkan adaptor acer adp-65 jhbb 65w modal 95000 di rak 2&#10;toshiba sadp-75pbb 75w modal 110000 di rak 2&#10;obeng set presisi jakemy jm-8186 layer 3 di rak 1"
+                value={voiceInput}
+                onChange={handleInputChange}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setIsFullscreen(false);
+                  } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    handleProcessAI();
+                    setIsFullscreen(false);
+                  }
+                }}
+                className="flex-1 w-full bg-slate-950/70 border border-slate-800 focus:border-cyan-500 rounded-2xl p-4 text-xs sm:text-sm text-white placeholder-slate-600 outline-none resize-none leading-relaxed transition-all font-mono"
+              />
+            </div>
+
+            {/* Bottom Toolbar Fullscreen */}
+            <div className="pt-3 border-t border-slate-800 shrink-0 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {!isMobileDevice && (
+                  <button
+                    type="button"
+                    onClick={toggleListening}
+                    className={`p-2.5 rounded-xl border flex items-center gap-2 text-xs font-semibold transition-all ${
+                      isListening
+                        ? 'bg-rose-500 text-white border-rose-400 animate-pulse'
+                        : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-cyan-400'
+                    }`}
+                  >
+                    {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+                    <span>{isListening ? 'Mendengarkan...' : 'Gunakan Mic'}</span>
+                  </button>
+                )}
+                <span className="text-xs text-slate-400 font-mono hidden sm:inline">
+                  {lineCount} Baris | {voiceInput.trim().split(/\s+/).filter(Boolean).length} Kata
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsFullscreen(false)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors"
+                >
+                  Kembali (Esc)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleProcessAI();
+                    setIsFullscreen(false);
+                  }}
+                  disabled={aiLoading || !voiceInput.trim()}
+                  className="p-2.5 sm:px-4 sm:py-2.5 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 disabled:opacity-40 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
+                  title="Proses AI (Ctrl+Enter)"
+                >
+                  {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                  <span className="hidden sm:inline">Proses AI</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* === PANEL BATCH MULTI-ITEM (JIKA DETEKSI > 1 ITEM) === */}
       {batchItems.length > 1 && (
